@@ -25,7 +25,7 @@ ticker4_label <- fread("Ticker4_label.csv")
 ```
 
 ```{r}
-View(ticker1_label[1:5,])
+View(ticker1_label[1:10,])
 View(ticker1[1:5,])
 ```
 
