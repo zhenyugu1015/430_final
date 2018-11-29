@@ -1,0 +1,31 @@
+---
+title: "Group 2: Final Report"
+author: "Di Ye (diye2), Jingyi Xie (jingyix3), Zhenyu Gu (zgu15), Zihe Wang (zwang199)"
+date: "November 29, 2018"
+output: pdf_document
+toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load Dataset
+```{r}
+library(data.table)
+ticker1 <- fread("Ticker1.csv")
+ticker2 <- fread("Ticker2.csv")
+ticker3 <- fread("Ticker3.csv")
+ticker4 <- fread("Ticker4.csv")
+
+ticker1_label <- fread("Ticker1_label.csv")
+ticker2_label <- fread("Ticker2_label.csv")
+ticker3_label <- fread("Ticker3_label.csv")
+ticker4_label <- fread("Ticker4_label.csv")
+```
+
+```{r}
+View(ticker1_label[1:5,])
+View(ticker1[1:5,])
+```
+
