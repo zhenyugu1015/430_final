@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-from numpy import genfromtxt
 
 def toSeconds(file):
     df = pd.read_csv(file, header=None, sep=',', low_memory=False)
@@ -17,7 +16,7 @@ def toSeconds(file):
     temp1, temp2 = [], []
     buy_vol, buy_sum, buy_contr = 0, 0, 0
     sell_vol, sell_sum, sell_contr = 0, 0, 0
-    
+
     for i in range(len(buy_input)):
 
         buy_vol += sum(float(buy_input[i,3+j].split('x')[1].split('(')[0])*
