@@ -1,4 +1,4 @@
-myPred_myGroupNumber <- function("path\to\Ticker1.csv", "path\to\Ticker2.csv",
+myPred_2 <- function("path\to\Ticker1.csv", "path\to\Ticker2.csv",
                                  "path\to\Ticker3.csv", "path\to\Ticker4.csv",
                                  "path\to\myCandidateModel")
 {
