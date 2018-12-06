@@ -17,32 +17,38 @@ def toSeconds(file):
     temp1, temp2 = [], []
 
     for i in range(len(buy_input)):
+
         if(float(buy_input[i,0])//1000 > float(buy_input[i-1,0])//1000 or i==0):
             buy_time = float(buy_input[i,0])//1000
             buy_ticker = buy_input[i,1]
-            buy_open = buy_input[i,3]
+            buy_open = buy_input[i,3][:7]
+            buy_low = min(float(buy_input[i,3+j][:8]) for j in range(10))
+            buy_high = max(float(buy_input[i,3+j][:8]) for j in range(10))
+            buy_vol = sum(float(buy_input[i,3+j][-3:-2]) for j in range(10))
+
+        else:
+            row_low = min(float(buy_input[i,3+j][:8]) for j in range(10))
+            row_high = max(float(buy_input[i,3+j][:8]) for j in range(10))
+            buy_vol += sum(float(buy_input[i,3+j][-3:-2]) for j in range(10))
+            if(row_low < buy_low):
+                buy_low = row_low
+            if(row_high > buy_high):
+                buy_high = row_high
+
         if(i==len(buy_input)-1):
-            buy_close = buy_input[i,12]
-            temp1.append([buy_time,buy_ticker,buy_open,buy_close])
+            buy_close = buy_input[i,12][:7]
+            temp1.append([buy_time,buy_ticker,buy_open,buy_close,buy_low,buy_high,buy_vol])
             break
+
         if(float(buy_input[i,0])//1000 < float(buy_input[i+1,0])//1000):
-            buy_close = buy_input[i,12]
-            temp1.append([buy_time,buy_ticker,buy_open,buy_close])
+            buy_close = buy_input[i,12][:7]
+            temp1.append([buy_time,buy_ticker,buy_open,buy_close,buy_low,buy_high,buy_vol])
 
     buy_output = np.array(temp1)
+    columns = ['time','ticker','open','close','low','high','volume']
+    df = pd.DataFrame(buy_output,columns=columns)
+    df.to_csv("ticker1_buy.csv")
 
-    for i in range(len(sell_input)):
-        if(float(sell_input[i,0])//1000 > float(sell_input[i-1,0])//1000 or i==0):
-            sell_time = float(sell_input[i,0])//1000
-            sell_ticker = sell_input[i,1]
-            sell_open = sell_input[i,3]
-        if(i==len(sell_input)-1):
-            sell_close = sell_input[i,12]
-            temp2.append([sell_time,sell_ticker,sell_open,sell_close])
-            break
-        if(float(sell_input[i,0])//1000 < float(sell_input[i+1,0])//1000):
-            sell_close = sell_input[i,12]
-            temp2.append([sell_time,sell_ticker,sell_open,sell_close])
-    sell_output = np.array(temp2)
-    print(buy_output, sell_output)
+
+
 toSeconds("Workbook1.csv")
