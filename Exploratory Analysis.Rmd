@@ -1,0 +1,29 @@
+---
+title: "Exploratory Analysis"
+author: "Zihe Wang"
+date: "12/6/2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(purrr)
+library(data.table)
+library(dplyr)
+
+t1_features <- fread("data/Ticker1.csv")
+t1_directions <- fread("data/Ticker1_label.csv")
+t1_features$tm <- floor(t1_features$Timestamp / 1000)
+
+df <- t1_features %>% group_by(tm, Side) %>% summarise(
+  O = map(as.numeric(strsplit(Level1, 'x')[[1]][1]), 1)
+  C = tail(as.numeric(strsplit(Level10, 'x')[[1]][1]), 1)
+  V = sum()
+)
+
+plot
+
+```
