@@ -46,12 +46,14 @@ def toSeconds(file):
             buy_close = buy_input[i,12][:7]
             buy_weighted_avg = buy_sum / buy_contr
             temp1.append([buy_time,buy_open,buy_close,buy_low,buy_high,buy_vol,buy_weighted_avg])
+            buy_vol, buy_sum, buy_contr = 0, 0, 0
             break
 
         if(float(buy_input[i,0])//1000 < float(buy_input[i+1,0])//1000):
             buy_close = buy_input[i,12][:7]
             buy_weighted_avg = buy_sum / buy_contr
             temp1.append([buy_time,buy_open,buy_close,buy_low,buy_high,buy_vol,buy_weighted_avg])
+            buy_vol, buy_sum, buy_contr = 0, 0, 0
 
     buy_output = np.array(temp1)
     buy_columns = ['time','buy_open','buy_close','buy_low','buy_high','buy_volume','buy_weighted_avg']
@@ -87,12 +89,14 @@ def toSeconds(file):
             sell_close = sell_input[i,12][:7]
             sell_weighted_avg = sell_sum / sell_contr
             temp2.append([sell_time,sell_open,sell_close,sell_low,sell_high,sell_vol,sell_weighted_avg])
+            sell_vol, sell_sum, sell_contr = 0, 0, 0
             break
 
         if(float(sell_input[i,0])//1000 < float(sell_input[i+1,0])//1000):
             sell_close = sell_input[i,12][:7]
             sell_weighted_avg = sell_sum / sell_contr
             temp2.append([sell_time,sell_open,sell_close,sell_low,sell_high,sell_vol,sell_weighted_avg])
+            sell_vol, sell_sum, sell_contr = 0, 0, 0
 
     sell_output = np.array(temp2)
     sell_columns = ['time','sell_open','sell_close','sell_low','sell_high','sell_volume','sell_weighted_avg']
@@ -105,4 +109,3 @@ def toSeconds(file):
 
 ### Change file path here ###
 toSeconds("Workbook1.csv")
-
