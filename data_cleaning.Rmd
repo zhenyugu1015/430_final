@@ -1,0 +1,71 @@
+---
+title: "data_cleaning"
+author: "Zhenyu Gu"
+date: "12/8/2018"
+output: html_document
+---
+
+```{r}
+price = function(string){
+  return(as.numeric(strsplit(string," ")[[1]][1]))
+}
+contract = function(string){
+  return(as.numeric(strsplit(string," ")[[1]][3]))
+}
+order = function(string){
+  return(as.numeric(strsplit(string,"[()]")[[1]][2]))
+}
+
+toSeconds = function(file){
+  
+  df = read.csv(file)
+  buy_input = as.matrix(split(df,df$Side)[['BUY']])
+  sell_input = as.matrix(split(df,df$Side)[['SELL']])
+  buy_vol = buy_sum = buy_contr = 0
+  buy_output = matrix(,ncol=7)
+  
+  for (i in 1:nrow(buy_input)){
+    buy_vol = buy_vol + sum(unlist(lapply(buy_input[i,4:13], contract))
+                            * unlist(lapply(buy_input[i,4:13], order)))
+    buy_sum = buy_sum + sum(unlist(lapply(buy_input[i,4:13], price))
+                            * unlist(lapply(buy_input[i,4:13], contract)))
+    buy_contr = buy_contr + sum(unlist(lapply(buy_input[i,4:13], contract)))
+
+    if (i==1){
+      buy_time = as.numeric(buy_input[i,1])%/%1000
+      buy_open = price(unlist(buy_input[i,4]))
+      buy_low = min(unlist(lapply(buy_input[i,4:13], price)))
+      buy_high = max(unlist(lapply(buy_input[i,4:13], price)))
+    }else if(i!=1 & as.numeric(buy_input[i,1])%/%1000 > as.numeric(buy_input[i-1,1])%/%1000){
+      buy_time = as.numeric(buy_input[i,1])%/%1000
+      buy_open = price(unlist(buy_input[i,4]))
+      buy_low = min(unlist(lapply(buy_input[i,4:13], price)))
+      buy_high = max(unlist(lapply(buy_input[i,4:13], price)))
+    }else{
+      row_low = min(unlist(lapply(buy_input[i,4:13], price)))
+      row_high = max(unlist(lapply(buy_input[i,4:13], price)))
+      if(row_low < buy_low) buy_low = row_low
+      if(row_high > buy_high) buy_high = row_high
+    }
+    if (i==nrow(buy_input)){
+      buy_close = price(unlist(buy_input[i,13]))
+      buy_weighted_avg = buy_sum / buy_contr
+      buy_output = rbind(buy_output, c(buy_time,buy_open,buy_close,buy_low,buy_high,buy_vol,buy_weighted_avg))
+    }else if(i!=nrow(buy_input) & as.numeric(buy_input[i,1])%/%1000 < as.numeric(buy_input[i+1,1])%/%1000){
+      buy_close = price(unlist(buy_input[i,13]))
+      buy_weighted_avg = buy_sum / buy_contr
+      buy_output = rbind(buy_output, c(buy_time,buy_open,buy_close,buy_low,buy_high,buy_vol,buy_weighted_avg))
+    }
+  }
+  colnames(buy_output) = c('time','buy_open','buy_close','buy_low','buy_high','buy_volume','buy_weighted_avg')
+  return(buy_output)
+}
+```
+
+```{r}
+head(toSeconds("Workbook1.csv"))
+#test = data.frame("555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)")
+#c(test[4:13])
+#unlist(lapply(as.matrix(test[4:13]), contract)) * unlist(lapply(as.matrix(test[4:13]), contract))
+#if(111111%/%1000 < 222222222%/%1000) print(4)
+```
