@@ -22,7 +22,7 @@ toSeconds = function(file){
   buy_input = as.matrix(split(df,df$Side)[['BUY']])
   sell_input = as.matrix(split(df,df$Side)[['SELL']])
   buy_vol = buy_sum = buy_contr = 0
-  buy_output = matrix(,ncol=7)
+  buy_output = matrix(ncol=7)
   
   for (i in 1:nrow(buy_input)){
     buy_vol = buy_vol + sum(unlist(lapply(buy_input[i,4:13], contract))
@@ -51,19 +51,65 @@ toSeconds = function(file){
       buy_close = price(unlist(buy_input[i,13]))
       buy_weighted_avg = buy_sum / buy_contr
       buy_output = rbind(buy_output, c(buy_time,buy_open,buy_close,buy_low,buy_high,buy_vol,buy_weighted_avg))
+      buy_vol = buy_sum = buy_contr = 0
     }else if(i!=nrow(buy_input) & as.numeric(buy_input[i,1])%/%1000 < as.numeric(buy_input[i+1,1])%/%1000){
       buy_close = price(unlist(buy_input[i,13]))
       buy_weighted_avg = buy_sum / buy_contr
       buy_output = rbind(buy_output, c(buy_time,buy_open,buy_close,buy_low,buy_high,buy_vol,buy_weighted_avg))
+      buy_vol = buy_sum = buy_contr = 0
     }
   }
-  colnames(buy_output) = c('time','buy_open','buy_close','buy_low','buy_high','buy_volume','buy_weighted_avg')
-  return(buy_output)
+  buy_output = buy_output[-1,]
+  colnames(buy_output) = c('buy_time','buy_open','buy_close','buy_low','buy_high','buy_volume','buy_weighted_avg')
+  
+  sell_vol = sell_sum = sell_contr = 0
+  sell_output = matrix(ncol=7)
+  
+  for (i in 1:nrow(sell_input)){
+    sell_vol = sell_vol + sum(unlist(lapply(sell_input[i,4:13], contract))
+                            * unlist(lapply(sell_input[i,4:13], order)))
+    sell_sum = sell_sum + sum(unlist(lapply(sell_input[i,4:13], price))
+                            * unlist(lapply(sell_input[i,4:13], contract)))
+    sell_contr = sell_contr + sum(unlist(lapply(sell_input[i,4:13], contract)))
+
+    if (i==1){
+      sell_time = as.numeric(sell_input[i,1])%/%1000
+      sell_open = price(unlist(sell_input[i,4]))
+      sell_low = min(unlist(lapply(sell_input[i,4:13], price)))
+      sell_high = max(unlist(lapply(sell_input[i,4:13], price)))
+    }else if(i!=1 & as.numeric(sell_input[i,1])%/%1000 > as.numeric(sell_input[i-1,1])%/%1000){
+      sell_time = as.numeric(sell_input[i,1])%/%1000
+      sell_open = price(unlist(sell_input[i,4]))
+      sell_low = min(unlist(lapply(sell_input[i,4:13], price)))
+      sell_high = max(unlist(lapply(sell_input[i,4:13], price)))
+    }else{
+      row_low = min(unlist(lapply(sell_input[i,4:13], price)))
+      row_high = max(unlist(lapply(sell_input[i,4:13], price)))
+      if(row_low < sell_low) sell_low = row_low
+      if(row_high > sell_high) sell_high = row_high
+    }
+    if (i==nrow(sell_input)){
+      sell_close = price(unlist(sell_input[i,13]))
+      sell_weighted_avg = sell_sum / sell_contr
+      sell_output = rbind(sell_output, c(sell_time,sell_open,sell_close,sell_low,sell_high,sell_vol,sell_weighted_avg))
+      sell_vol = sell_sum = sell_contr = 0
+    }else if(i!=nrow(sell_input) & as.numeric(sell_input[i,1])%/%1000 < as.numeric(sell_input[i+1,1])%/%1000){
+      sell_close = price(unlist(sell_input[i,13]))
+      sell_weighted_avg = sell_sum / sell_contr
+      sell_output = rbind(sell_output, c(sell_time,sell_open,sell_close,sell_low,sell_high,sell_vol,sell_weighted_avg))
+      sell_vol = sell_sum = sell_contr = 0
+    }
+  }
+  sell_output = sell_output[-1,]
+  colnames(sell_output) = c('sell_time','sell_open','sell_close','sell_low','sell_high','sell_volume','sell_weighted_avg')
+  result = merge(buy_output, sell_output, by.x='buy_time', by.y='sell_time', all.x=TRUE, all.y=TRUE)
+  columns = c('time','buy_open','buy_close','buy_low','buy_high','buy_volume','buy_weighted_avg','sell_open','sell_close','sell_low','sell_high','sell_volume','sell_weighted_avg')
+  write.csv(result, file = "ticker_1.csv", col.names=columns)
 }
 ```
 
 ```{r}
-head(toSeconds("Workbook1.csv"))
+toSeconds("Ticker1.csv")
 #test = data.frame("555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)")
 #c(test[4:13])
 #unlist(lapply(as.matrix(test[4:13]), contract)) * unlist(lapply(as.matrix(test[4:13]), contract))
