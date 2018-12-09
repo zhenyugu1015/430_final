@@ -60,7 +60,7 @@ toSeconds = function(file){
     }
   }
   buy_output = buy_output[-1,]
-  colnames(buy_output) = c('buy_time','buy_open','buy_close','buy_low','buy_high','buy_volume','buy_weighted_avg')
+  colnames(buy_output) = c('time','buy_open','buy_close','buy_low','buy_high','buy_volume','buy_weighted_avg')
   
   sell_vol = sell_sum = sell_contr = 0
   sell_output = matrix(ncol=7)
@@ -101,17 +101,13 @@ toSeconds = function(file){
     }
   }
   sell_output = sell_output[-1,]
-  colnames(sell_output) = c('sell_time','sell_open','sell_close','sell_low','sell_high','sell_volume','sell_weighted_avg')
-  result = merge(buy_output, sell_output, by.x='buy_time', by.y='sell_time', all.x=TRUE, all.y=TRUE)
+  colnames(sell_output) = c('time','sell_open','sell_close','sell_low','sell_high','sell_volume','sell_weighted_avg')
+  result = merge(buy_output, sell_output, by.x='time', by.y='time', all.x=TRUE, all.y=TRUE)
   columns = c('time','buy_open','buy_close','buy_low','buy_high','buy_volume','buy_weighted_avg','sell_open','sell_close','sell_low','sell_high','sell_volume','sell_weighted_avg')
-  write.csv(result, file = "ticker_1.csv", col.names=columns)
+  write.csv(result, file = "ticker_1.csv",row.names=FALSE, col.names=columns) # change output file name here
 }
 ```
 
 ```{r}
-toSeconds("Ticker1.csv")
-#test = data.frame("555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)","555.555 x 55 (55)")
-#c(test[4:13])
-#unlist(lapply(as.matrix(test[4:13]), contract)) * unlist(lapply(as.matrix(test[4:13]), contract))
-#if(111111%/%1000 < 222222222%/%1000) print(4)
+toSeconds("Ticker1.csv") # change input file name here
 ```
