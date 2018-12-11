@@ -13,17 +13,89 @@ knitr::opts_chunk$set(echo = TRUE)
 library(purrr)
 library(data.table)
 library(dplyr)
+library(readr)
 
 t1_features <- fread("data/Ticker1.csv")
 t1_directions <- fread("data/Ticker1_label.csv")
 t1_features$tm <- floor(t1_features$Timestamp / 1000)
+t1_features <- t1_features[, -c("Timestamp")]
 
-df <- t1_features %>% group_by(tm, Side) %>% summarise(
-  O = map(as.numeric(strsplit(Level1, 'x')[[1]][1]), 1)
-  C = tail(as.numeric(strsplit(Level10, 'x')[[1]][1]), 1)
-  V = sum()
-)
 
-plot
+test <- '2062.75000000 x 145 (61)'
+
+library(tidyr)
+get_v <- function(column) {
+  contract_orders <- strsplit(column, 'x')[[1]][2]
+  contract <- strsplit(contract_orders, '\\(')[[1]][1]
+  return(as.numeric(contract))
+}
+
+get_p <- function(column) {
+  prices <- strsplit(column, 'x')[[1]][1]
+  return(as.numeric(prices))
+}
+
+get_wv <- function(column) {
+  parsed <- strsplit(column, 'x')[[1]]
+  prices <-  as.numeric(parsed[1])
+  contract <- as.numeric(strsplit(parsed[2], '\\(')[[1]][1])
+  return(prices * contract)
+}
+
+get_o <- function(column) {
+  parsed <- strsplit(column, 'x')[[1]]
+  parsed2 <- strsplit(parsed[2], '\\(')
+  orders <-parse_number(parsed2[[1]][2])
+  return(orders)
+}
+
+# my_parse_str <- function(column){
+#   parsed <- strsplit(column, 'x')[[1]]
+#   prices <-  as.numeric(parsed[1])
+#   parsed2 <- strsplit(parsed[2], '\\(')
+#   contract <- as.numeric(parsed2[[1]][1])
+#   orders <-parse_number(parsed2[[1]][2])
+#   return(c(prices, contract, orders))
+# }
+
+
+test_data <- t1_features[1:10000,]
+# cluster on Windows
+library(parallel)
+process_data <- function(raw_dat){
+  raw_dat$Timestamp <- floor(raw_dat$Timestamp / 1000)
+  buy_raw <- raw_dat[raw_dat$Side == 'BUY', ]
+  sell_raw <- raw_dat[raw_dat$Side == 'SELL', ]
+  raw_list <- list(buy_raw, sell_raw)
+  cores <- detectCores(logical = FALSE)
+  print("apply begin")
+  ret_dat <- mclapply(1:2, 
+                      FUN = function(i){
+                        print(i)
+                        dat <- raw_list[[i]]
+                        ret <- dat %>% rowwise() %>% 
+                                  mutate(open = get_p(Level1),
+                                         close = get_p(Level10),
+                                         volumns = sum(sapply(c(Level1, Level2, Level3, Level4, Level5, Level6, Level7, Level8, Level9, Level10), get_v)),
+                                         order = sum(sapply(c(Level1, Level2, Level3, Level4, Level5, Level6, Level7, Level8, Level9, Level10), get_o)),
+                                         weight_sum = sum(sapply(c(Level1, Level2, Level3, Level4, Level5, Level6, Level7, Level8, Level9,Level10), get_wv)),
+                                         highest = max(sapply(c(Level1, Level2, Level3, Level4, Level5, Level6, Level7, Level8, Level9,Level10), get_p)),
+                                         lowest = min(sapply(c(Level1, Level2, Level3, Level4, Level5, Level6, Level7, Level8, Level9,Level10), get_p))) %>%
+                                  group_by(Timestamp, Side) %>% 
+                                  summarise(
+                                    O = open[1],
+                                    C = tail((close), 1),
+                                    H = max(highest),
+                                    L = min(lowest),
+                                    V = sum(volumns),
+                                    Orders = sum(order),
+                                    WS = sum(weight_sum) / V)
+                        return(ret)
+                      },
+                      mc.cores = 2
+                      )
+  ret <- merge(ret_dat[[1]], ret_dat[[2]], by="Timestamp", all=TRUE)
+}
+ret <- process_data(test_data)  
 
 ```
