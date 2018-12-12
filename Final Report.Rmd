@@ -12,20 +12,32 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Load Dataset
 ```{r}
-library(data.table)
-ticker1 <- fread("Ticker1.csv")
-ticker2 <- fread("Ticker2.csv")
-ticker3 <- fread("Ticker3.csv")
-ticker4 <- fread("Ticker4.csv")
-
-ticker1_label <- fread("Ticker1_label.csv")
-ticker2_label <- fread("Ticker2_label.csv")
-ticker3_label <- fread("Ticker3_label.csv")
-ticker4_label <- fread("Ticker4_label.csv")
+library(data.table) # fread
+library(bit64) # sell_volume
+library(imputeTS) # na.replace
+ticker1 <- fread("project data/ticker_1.csv") # sell_volume integer 64 install.packages(bit64)
+ticker1$sell_volume <- as.numeric(ticker1$sell_volume)
+ticker2 <- fread("project data/ticker_2.csv")
+ticker3 <- fread("project data/ticker_3.csv")
+ticker4 <- fread("project data/ticker_4.csv")
+ticker1_label <- fread("project data/Ticker1_label.csv")
+ticker2_label <- fread("project data/Ticker2_label.csv")
+ticker3_label <- fread("project data/Ticker3_label.csv")
+ticker4_label <- fread("project data/Ticker4_label.csv")
 ```
 
 ```{r}
-View(ticker1_label[1:10,])
-View(ticker1[1:5,])
+head(ticker1, 10)
+ticker1 <- na.replace(ticker1, 0)
+ticker2 <- na.replace(ticker2, 0)
+ticker3 <- na.replace(ticker3, 0)
+ticker4 <- na.replace(ticker4, 0)
+head(ticker1, 10)
 ```
+
+```{r}
+TICKER <- c("1", "2", "3", "4")
+```
+
+
 
