@@ -10,13 +10,36 @@ toc: yes
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+# Introduction
+The stock data is from four companies, CME, CBOT, NYMEX and Comex. 
+
+CME Group Inc. (Chicago Mercantile Exchange & Chicago Board of Trade) is an American financial market company operating an options and futures exchange. It owns and operates large derivatives and futures exchanges in Chicago, New York City, and exchange facilities in London, using online trading platforms. It also owns the Dow Jones stock and financial indexes, and CME Clearing Services, which provides settlement and clearing of exchange trades. The exchange-traded derivative contracts include futures and options based on interest rates, equity indexes, foreign exchange, energy, agricultural commodities, rare and precious metals, weather, and real estate.
+
+CBo Territoria SA engages in the development, promotion and management of residential and business real estate properties based on Reunion Island. The company operates through the following segment: Property development and Land. The Property development segment engages in the development and management of its own real estate property, consisting primarily of business real estate: activity centers, offices and businesses. The Land segment offer land management and regional development. CBo Territoria was founded on January 16, 2004 and is headquartered in Sainte-Marie, Reunion Island.
+
+The New York Mercantile Exchange (NYMEX) is a commodity futures exchange owned and operated by CME Group of Chicago. NYMEX is located at One North End Avenue in Brookfield Place in the Battery Park City section of Manhattan, New York City. Additional offices are located in Boston, Washington, Atlanta, San Francisco, Dubai, London, and Tokyo.
+
+COMEX is the primary futures and options market for trading metals such as gold, silver, copper and aluminum. Formerly known as the Commodity Exchange Inc., COMEX merged with the New York Mercantile Exchange (NYMEX) in 1994 and became the division responsible for metals trading.
+
+
+
+# Data description
+
+The dataset contains AlgoSeek Level 2 data from CME, CBOT, NYMEX and Comex. The Level 2 data is from the CME FIXFast feed which provides 10 levels of the book for the bid and the ask. The variables in the dataset are listed as below:
+-	UTC: Timestamps in YYYYMMDDHHMMSSMMM in UTC time [MMM is for milliseconds] 
+-	Ticker: Instrument name (up to 8 characters) 
+-	Side: BUY/SELL side of the book 
+-	Flags: is implied or regular book 
+-	Depth: Number of levels being shown in the book for this instrument (up to 10 levels, zero-based index) 
+-	10 levels of: Price x Contracts (Number of Orders). For example “1.38 x 12 (5)” means there are 12 contracts at price 1.38 from a total of 5 orders. Each row has 10 levels but there will only be data for the number of Depth levels (see depth field above).
+
 ## Load Dataset
 ```{r}
 library(data.table) # fread
-library(bit64) # sell_volume
+# library(bit64) # sell_volume
 library(imputeTS) # na.replace
-ticker1 <- fread("project data/ticker_1.csv") # sell_volume integer 64 install.packages(bit64)
-ticker1$sell_volume <- as.numeric(ticker1$sell_volume)
+ticker1 <- fread("project data/ticker_1.csv")
+# ticker1$sell_volume <- as.numeric(ticker1$sell_volume)
 ticker2 <- fread("project data/ticker_2.csv")
 ticker3 <- fread("project data/ticker_3.csv")
 ticker4 <- fread("project data/ticker_4.csv")
@@ -28,6 +51,11 @@ ticker4_label <- fread("project data/Ticker4_label.csv")
 
 ```{r}
 head(ticker1, 10)
+names(ticker1)
+ticker1[,c(2:5, 8:12, 15)] <- na.interpolation(ticker1[,c(2:5, 8:12, 15)], option = "linear")
+ticker2[,c(2:5, 8:12, 15)] <- na.interpolation(ticker2[,c(2:5, 8:12, 15)], option = "linear")
+ticker3[,c(2:5, 8:12, 15)] <- na.interpolation(ticker3[,c(2:5, 8:12, 15)], option = "linear")
+ticker4[,c(2:5, 8:12, 15)] <- na.interpolation(ticker4[,c(2:5, 8:12, 15)], option = "linear")
 ticker1 <- na.replace(ticker1, 0)
 ticker2 <- na.replace(ticker2, 0)
 ticker3 <- na.replace(ticker3, 0)
@@ -39,5 +67,29 @@ head(ticker1, 10)
 TICKER <- c("1", "2", "3", "4")
 ```
 
+```{r}
+nCol <- ncol(ticker1_buy)
+me_train <- apply(as.matrix(ticker1_buy), 2, mean)
+sd_train <- apply(as.matrix(ticker1_buy), 2, sd)
+# me_val <- apply(as.matrix(ticker1_buy), 2, mean)
+# sd_val <- apply(as.matrix(ticker1_buy), 2, sd)
+library(keras)
 
+model <- keras_model_sequential() %>%
+layer_conv_2d(filters = 8, kernel_size = c(4, nCol), activation = "relu", input_shape = c(w, nCol, 1)) %>%
+layer_conv_2d(filters = 8, kernel_size = c(1, 1), activation = "relu") %>%
+layer_conv_2d(filters = 8, kernel_size = c(4, 1), activation = "relu") %>%
+layer_flatten() %>%
+layer_dense(units = 8, activation = "relu") %>%
+layer_dropout(rate = 0.5) %>%
+layer_dense(units = 3, activation = "softmax")
+
+model %>% compile(
+loss = "categorical_crossentropy",
+optimizer = optimizer_rmsprop(lr = 1e-4),
+metrics = c("acc")
+)
+batch_size <- 120
+  
+```
 
