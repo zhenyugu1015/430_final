@@ -15,35 +15,35 @@ library(data.table)
 library(dplyr)
 library(readr)
 
-t1_features <- fread("data/Ticker1.csv")
+t1_raw <- fread("data/Ticker1.csv")
 t1_directions <- fread("data/Ticker1_label.csv")
-t1_features$tm <- floor(t1_features$Timestamp / 1000)
+t1_raw$Timestamp <- floor(t1_raw$Timestamp / 1000)
 t1_features <- t1_features[, -c("Timestamp")]
 
 
 test <- '2062.75000000 x 145 (61)'
 
 library(tidyr)
-get_v <- function(column) {
-  contract_orders <- strsplit(column, 'x')[[1]][2]
+get_v <- function(string) {
+  contract_orders <- strsplit(string, 'x')[[1]][2]
   contract <- strsplit(contract_orders, '\\(')[[1]][1]
   return(as.numeric(contract))
 }
 
-get_p <- function(column) {
-  prices <- strsplit(column, 'x')[[1]][1]
-  return(as.numeric(prices))
+get_p <- function(string) {
+  prices <- as.numeric(strsplit(string, 'x')[[1]][1])
+  return(prices)
 }
 
-get_wv <- function(column) {
-  parsed <- strsplit(column, 'x')[[1]]
+get_wv <- function(string) {
+  parsed <- strsplit(string, 'x')[[1]]
   prices <-  as.numeric(parsed[1])
   contract <- as.numeric(strsplit(parsed[2], '\\(')[[1]][1])
   return(prices * contract)
 }
 
-get_o <- function(column) {
-  parsed <- strsplit(column, 'x')[[1]]
+get_o <- function(string) {
+  parsed <- strsplit(string, 'x')[[1]]
   parsed2 <- strsplit(parsed[2], '\\(')
   orders <-parse_number(parsed2[[1]][2])
   return(orders)
@@ -58,8 +58,6 @@ get_o <- function(column) {
 #   return(c(prices, contract, orders))
 # }
 
-
-test_data <- t1_features[1:10000,]
 # cluster on Windows
 library(parallel)
 process_data <- function(raw_dat){
@@ -71,20 +69,19 @@ process_data <- function(raw_dat){
   print("apply begin")
   ret_dat <- mclapply(1:2, 
                       FUN = function(i){
-                        print(i)
                         dat <- raw_list[[i]]
                         ret <- dat %>% rowwise() %>% 
                                   mutate(open = get_p(Level1),
-                                         close = get_p(Level10),
                                          volumns = sum(sapply(c(Level1, Level2, Level3, Level4, Level5, Level6, Level7, Level8, Level9, Level10), get_v)),
                                          order = sum(sapply(c(Level1, Level2, Level3, Level4, Level5, Level6, Level7, Level8, Level9, Level10), get_o)),
                                          weight_sum = sum(sapply(c(Level1, Level2, Level3, Level4, Level5, Level6, Level7, Level8, Level9,Level10), get_wv)),
                                          highest = max(sapply(c(Level1, Level2, Level3, Level4, Level5, Level6, Level7, Level8, Level9,Level10), get_p)),
-                                         lowest = min(sapply(c(Level1, Level2, Level3, Level4, Level5, Level6, Level7, Level8, Level9,Level10), get_p))) %>%
+                                         lowest = apply(sapply(c(Level1, Level2, Level3, Level4, Level5, Level6, Level7, Level8, Level9,Level10), get_p)), 1, 
+                                                        FUN = function(x) {min(x[x > 0])}) %>%
                                   group_by(Timestamp, Side) %>% 
                                   summarise(
                                     O = open[1],
-                                    C = tail((close), 1),
+                                    C = tail(open, 1),
                                     H = max(highest),
                                     L = min(lowest),
                                     V = sum(volumns),
@@ -94,8 +91,83 @@ process_data <- function(raw_dat){
                       },
                       mc.cores = 2
                       )
+  print("start merging")
   ret <- merge(ret_dat[[1]], ret_dat[[2]], by="Timestamp", all=TRUE)
+  #write_csv(ret, name)
+  return(ret)
 }
-ret <- process_data(test_data)  
-
+test_data <- t1_raw[300000:3355326,]
+ret <- process_data(test_data)
+#begin: 1:53
+#end: 
 ```
+
+叶佬要的
+```{r}
+
+test <- t1_raw[1:50000,]
+dat_p <- test[test$Side == 'SELL', ] %>% mutate_at(vars(Level1:Level10), funs(p = get_p, v = get_v, o = get_o, ws = get_wv))
+close_prices <- dat_p %>% group_by(Timestamp, Side) %>% summarise_at(vars(Level1_p:Level10_p), funs(C = tail), n=1) %>% select(c(Level1_p_C:Level10_p_C))
+sum_prices <- dat_p %>% group_by(Timestamp, Side) %>% summarise_at(vars(Level1_ws:Level10_ws), funs(sum = sum)) %>% select(c(Level1_ws_sum:Level10_ws_sum))
+sum_volumns <- dat_p %>% group_by(Timestamp, Side) %>% summarise_at(vars(Level1_v:Level10_v), funs(sum = sum)) %>% select(c(Level1_v_sum:Level10_v_sum))
+ret <- cbind(close_prices, sum_prices[,-1])
+ret <- cbind(ret, sum_volumns[,-1])
+
+head(test)
+ret <- dat %>%
+          group_by(Timestamp, Side) %>% 
+          summarise(
+            O = open[1],
+            C = tail((close), 1),
+            H = max(highest),
+            L = min(lowest),
+            V = sum(volumns),
+            Orders = sum(order),
+            WS = sum(weight_sum) / V)
+
+t1_features <- fread("data/Ticker1.csv")
+t2_features <- fread("data/Ticker2.csv")
+t3_features <- fread("data/Ticker3.csv")
+t4_features <- fread("data/Ticker4.csv")
+process_data(t1_features, "t1_dat")
+process_data(t2_features, "t2_dat")
+process_data(t3_features, "t3_dat")
+process_data(t4_features, "t4_dat")
+```
+
+
+叶佬 data processing
+```{r}
+library(data.table) # fread
+# library(bit64) # sell_volume
+library(imputeTS) # na.replace
+ticker1 <- fread("t1_dat.csv")
+# ticker1$sell_volume <- as.numeric(ticker1$sell_volume)
+ticker2 <- fread("data/ticker_2.csv")
+ticker3 <- fread("data/ticker_3.csv")
+ticker4 <- fread("data/ticker_4.csv")
+ticker1_label <- fread("data/Ticker1_label.csv")
+ticker2_label <- fread("data/Ticker2_label.csv")
+ticker3_label <- fread("data/Ticker3_label.csv")
+ticker4_label <- fread("data/Ticker4_label.csv")
+head(ticker1)
+ticker1[,c(3:6,9, 11:14, 16)] <- na.interpolation(ticker1[,c(3:6,9, 11:14, 16)], option = "linear")
+ticker2[,c(2:5, 8:12, 15)] <- na.interpolation(ticker2[,c(2:5, 8:12, 15)], option = "linear")
+ticker3[,c(2:5, 8:12, 15)] <- na.interpolation(ticker3[,c(2:5, 8:12, 15)], option = "linear")
+ticker4[,c(2:5, 8:12, 15)] <- na.interpolation(ticker4[,c(2:5, 8:12, 15)], option = "linear")
+ticker1 <- na.replace(ticker1, 0)
+ticker2 <- na.replace(ticker2, 0)
+ticker3 <- na.replace(ticker3, 0)
+ticker4 <- na.replace(ticker4, 0)
+```
+
+```{r}
+l9_p <-  lapply(t1_raw$Level9, get_p)
+plot(unlist(l9_p))
+l8_p <-  lapply(t1_raw$Level8, get_p)
+plot(unlist(l8_p))
+
+t1_raw[unlist(l9_p)==0,]
+```
+
+
