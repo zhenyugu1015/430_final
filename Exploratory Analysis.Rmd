@@ -160,14 +160,86 @@ ticker2 <- na.replace(ticker2, 0)
 ticker3 <- na.replace(ticker3, 0)
 ticker4 <- na.replace(ticker4, 0)
 ```
-
+叶式筛法
 ```{r}
-l9_p <-  lapply(t1_raw$Level9, get_p)
-plot(unlist(l9_p))
-l8_p <-  lapply(t1_raw$Level8, get_p)
-plot(unlist(l8_p))
+library(reshape2)
+library(dplyr)
+library(data.table)
+library(readr)
+library(tidyr)
+extract_numeric(years)
+parse_number(years)
+raw1 <- fread("data/Ticker1.csv")
+raw1$s <- raw1$Timestamp%/%1000
+raw1$h <- floor(raw1$s/10000)
+raw1$m <- floor((raw1$s-raw1$h*10000)/100)
+raw1$s <- (raw1$s-raw1$h*10000-raw1$m*100)
 
-t1_raw[unlist(l9_p)==0,]
+Price = as.data.frame(apply(raw1[, c(4:13)], 2, colsplit, pattern = "x", names = c("Price", "right")))
+Volume = as.data.frame(apply(Price[,seq(2, 20, 2)], 2, colsplit, pattern = "[(]", names = c("Volume", "Order")))
+Orders = as.data.frame(apply(Volume[,seq(2, 20, 2)], 2, extract_numeric))
+Volume = Volume[,seq(1, 20, 2)]
+Price = Price[,seq(1, 20, 2)]
+P.V <- cbind(Price, Volume)
+P.V.O <- cbind(P.V, Orders)
+
+
+data <- raw1[,-c(4:13)]
+data <- cbind(data, P.V.O)
+data$Level1.Sum <- data$Level1.Price * data$Level1.right.Volume
+data$Level2.Sum <- data$Level2.Price * data$Level2.right.Volume
+data$Level3.Sum <- data$Level3.Price * data$Level3.right.Volume
+data$Level4.Sum <- data$Level4.Price * data$Level4.right.Volume
+data$Level5.Sum <- data$Level5.Price * data$Level5.right.Volume
+data$Level6.Sum <- data$Level6.Price * data$Level6.right.Volume
+data$Level7.Sum <- data$Level7.Price * data$Level7.right.Volume
+data$Level8.Sum <- data$Level8.Price * data$Level8.right.Volume
+data$Level9.Sum <- data$Level9.Price * data$Level9.right.Volume
+data$Level10.Sum <- data$Level10.Price * data$Level10.right.Volume
+data <- data[, -1]
+
+data_buy <- data[data$Side == "BUY",]
+data_sell <- data[data$Side == "SELL",]
+t1_buy_p <- data_buy %>% group_by(Ticker, Side, s, h, m) %>% 
+                   summarise_at(vars(Level1.Price:Level10.Price), funs(O=first, C=last))
+t1_buy_v <- data_buy %>% group_by(Ticker, Side, s, h, m) %>% 
+                   summarise_at(vars(Level1.right.Volume:Level10.right.Volume), funs(v=sum))
+t1_buy_o <- data_buy %>% group_by(Ticker, Side, s, h, m) %>% 
+                   summarise_at(vars(Level1.right.Order:Level10.right.Order), funs(o=sum))
+t1_buy_ws <- data_buy %>% group_by(Ticker, Side, s, h, m) %>% 
+                   summarise_at(vars(Level1.Sum:Level10.Sum), funs(ws=sum))
+t1_buy_v <- t1_buy_v[,-(1:5)]
+t1_buy_o <- t1_buy_o[,-(1:5)]
+t1_buy_ws <- t1_buy_ws[,-(1:5)]
+t1_buy <- merge(t1_buy_p, t1_buy_o)
+t1_buy <- merge(t1_buy, t1_buy_v)
+t1_buy <- merge(t1_buy, t1_buy_ws)
+
+
+t1_sell_p <- data_sell %>% group_by(Ticker, Side, s, h, m) %>% 
+                   summarise_at(vars(Level1.Price:Level10.Price), funs(O=first, C=last))
+t1_sell_v <- data_sell %>% group_by(Ticker, Side, s, h, m) %>% 
+                   summarise_at(vars(Level1.right.Volume:Level10.right.Volume), funs(v=sum))
+t1_sell_o <- data_sell %>% group_by(Ticker, Side, s, h, m) %>% 
+                   summarise_at(vars(Level1.right.Order:Level10.right.Order), funs(o=sum))
+t1_sell_ws <- data_sell %>% group_by(Ticker, Side, s, h, m) %>% 
+                   summarise_at(vars(Level1.Sum:Level10.Sum), funs(ws=sum))
+t1_sell_v <- t1_sell_v[,-(1:5)]
+t1_sell_o <- t1_sell_o[,-(1:5)]
+t1_sell_ws <- t1_sell_ws[,-(1:5)]
+t1_sell <- merge(t1_sell_p, t1_sell_o)
+t1_sell <- merge(t1_sell, t1_sell_v)
+t1_sell <- merge(t1_sell, t1_sell_ws)
+t1_dat <- merge(t1_buy, t1_sell, by = c("Ticker", "s", "h", "m"), all = TRUE)
+t1_dat <- fread('ticker1_processed.csv')
+t1_dat <- t1_dat[, -c(1, 6, 57)]
+t1_dat[,5:104] <- na.interpolation(t1_dat[,5:104], option = "linear")
+write.csv(t1_dat, "ticker1_processed.csv")
+t1_dat <- t1_dat[, -c(5, 56)]
+t1_dat[,5:104] <- apply(t1_dat[,5:104], 2, log)
+t1_label <- fread("data/Ticker1_label.csv")
+library(randomForest)
+
 ```
 
 
