@@ -13,19 +13,285 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Load Dataset
 ```{r}
 library(data.table)
-ticker1 <- fread("Ticker1.csv")
-ticker2 <- fread("Ticker2.csv")
-ticker3 <- fread("Ticker3.csv")
-ticker4 <- fread("Ticker4.csv")
+library(imputeTS)
+ticker1 <- fread("~/Desktop/430Final/project data/ticker_1.csv")
 
-ticker1_label <- fread("Ticker1_label.csv")
-ticker2_label <- fread("Ticker2_label.csv")
-ticker3_label <- fread("Ticker3_label.csv")
-ticker4_label <- fread("Ticker4_label.csv")
+ticker2 <- read.csv("/Users/jingyixie/Box/STAT430 Group Project/Final Project/data_level/ticker2_level.csv")
+ticker2 <- ticker2[,-c(4,15,26,27,28,29,40,51,52,53,54,65)]
+ticker2 <- ticker2[order(ticker2$h, ticker2$m, ticker2$s),]
+
+ticker3 <- fread("~/Desktop/430Final/project data/ticker_3.csv")
+ticker4 <- fread("~/Desktop/430Final/project data/ticker_4.csv")
+
+ticker1_label <- fread("~/Desktop/430Final/project data/Ticker1_label.csv")
+ticker2_label <- fread("~/Desktop/430Final/project data/Ticker2_label.csv")
+ticker3_label <- fread("~/Desktop/430Final/project data/Ticker3_label.csv")
+ticker4_label <- fread("~/Desktop/430Final/project data/Ticker4_label.csv")
+```
+
+
+# Introduction
+The stock data is from four companies, CME, CBOT, NYMEX and Comex. 
+
+CME Group Inc. (Chicago Mercantile Exchange & Chicago Board of Trade) is an American financial market company operating an options and futures exchange. It owns and operates large derivatives and futures exchanges in Chicago, New York City, and exchange facilities in London, using online trading platforms. It also owns the Dow Jones stock and financial indexes, and CME Clearing Services, which provides settlement and clearing of exchange trades. The exchange-traded derivative contracts include futures and options based on interest rates, equity indexes, foreign exchange, energy, agricultural commodities, rare and precious metals, weather, and real estate.
+
+CBo Territoria SA engages in the development, promotion and management of residential and business real estate properties based on Reunion Island. The company operates through the following segment: Property development and Land. The Property development segment engages in the development and management of its own real estate property, consisting primarily of business real estate: activity centers, offices and businesses. The Land segment offer land management and regional development. CBo Territoria was founded on January 16, 2004 and is headquartered in Sainte-Marie, Reunion Island.
+
+The New York Mercantile Exchange (NYMEX) is a commodity futures exchange owned and operated by CME Group of Chicago. NYMEX is located at One North End Avenue in Brookfield Place in the Battery Park City section of Manhattan, New York City. Additional offices are located in Boston, Washington, Atlanta, San Francisco, Dubai, London, and Tokyo.
+
+COMEX is the primary futures and options market for trading metals such as gold, silver, copper and aluminum. Formerly known as the Commodity Exchange Inc., COMEX merged with the New York Mercantile Exchange (NYMEX) in 1994 and became the division responsible for metals trading.
+
+
+
+# Data description
+
+The dataset contains AlgoSeek Level 2 data from CME, CBOT, NYMEX and Comex. The Level 2 data is from the CME FIXFast feed which provides 10 levels of the book for the bid and the ask. The variables in the dataset are listed as below:
+- UTC: Timestamps in YYYYMMDDHHMMSSMMM in UTC time [MMM is for milliseconds] 
+- Ticker: Instrument name (up to 8 characters) 
+- Side: BUY/SELL side of the book 
+- Flags: is implied or regular book 
+- Depth: Number of levels being shown in the book for this instrument (up to 10 levels, zero-based index) 
+- 10 levels of: Price x Contracts (Number of Orders). For example “1.38 x 12 (5)” means there are 12 contracts at price 1.38 from a total of 5 orders. Each row has 10 levels but there will only be data for the number of Depth levels (see depth field above).
+
+```{r}
+library(keras)
 ```
 
 ```{r}
-View(ticker1_label[1:10,])
-View(ticker1[1:5,])
+ticker2[,4:43] <- na.interpolation(ticker2[,4:43], option = "linear")
+ticker2 <- na.replace(ticker2, 0)
+
+
+# train | validation | test splits: 3|1|1
+# x_train1 <- ticker1[(1:floor(nrow(ticker1)/5*3)),]
+# x_val1 <- ticker1[((floor(nrow(ticker1)/5*3)+1):floor(nrow(ticker1)/5*4)),]
+# x_test1 <- ticker1[((floor(nrow(ticker1)/5*4)+1):nrow(ticker1)),]
+# y_train1 <- ticker1_label$direction[(1:floor(nrow(ticker1)/5*3))]
+# y_val11 <- ticker1_label$direction[((floor(nrow(ticker1)/5*3)+1):floor(nrow(ticker1)/5*4))]
+# y_test1 <- ticker1_label$direction[((floor(nrow(ticker1)/5*4)+1):nrow(ticker1))]
+
+#############ticker2 ###########
+x_train2 <- ticker2[(1:floor(nrow(ticker2)/5*3)),]
+x_val2 <- ticker2[((floor(nrow(ticker2)/5*3)+1):floor(nrow(ticker2)/5*4)),]
+x_test2 <- ticker2[((floor(nrow(ticker2)/5*4)+1):nrow(ticker2)),]
+y_train2 <- ticker2_label[(1:floor(nrow(ticker2)/5*3))]
+y_val2 <- ticker2_label[((floor(nrow(ticker2)/5*3)+1):floor(nrow(ticker2)/5*4))]
+y_test2 <- ticker2_label[((floor(nrow(ticker2)/5*4)+1):nrow(ticker2))]
+
+
+col_Price.open.Buy <- 4:13
+col_Price.open.Sell <- 14:23
+col_Price.me.Buy <-24:33
+col_Price.me.Sell <-34:43
+col_Volume.Buy <-44:53
+col_Volume.sell <-54:63
+
+me_Price.open.Buy <- mean(as.matrix(as.data.frame(x_train2[,col_Price.open.Buy])))
+sd_Price.open.Buy <- sd(as.matrix(x_train2[,col_Price.open.Buy]))
+
+me_Price.open.Sell <- mean(as.matrix(x_train2[,col_Price.open.Sell]))
+sd_Price.open.Sell <- sd(as.matrix(x_train2[,col_Price.open.Sell]))
+
+me_Price.me.Buy <- mean(as.matrix(x_train2[,col_Price.me.Buy]))
+sd_Price.me.Buy <- sd(as.matrix(x_train2[,col_Price.me.Buy]))
+
+me_Price.me.Sell <- mean(as.matrix(x_train2[,col_Price.me.Sell]))
+sd_Price.me.Sell <- sd(as.matrix(x_train2[,col_Price.me.Sell]))
+
+me_Volume.Buy <- mean(as.matrix(x_train2[,col_Volume.Buy]))
+sd_Volume.Buy <- sd(as.matrix(x_train2[,col_Volume.Buy]))
+
+me_Volume.Sell <- mean(as.matrix(x_train2[,col_Volume.sell]))
+sd_Volume.Sell <- sd(as.matrix(x_train2[,col_Volume.sell]))
+
+# rescale train data
+for(i in 4:13) x_train2[,i] <- scale(x_train2[,i], center = me_Price.open.Buy, scale = sd_Price.open.Buy)
+for(i in 14:23) x_train2[,i] <- scale(x_train2[,i], center = me_Price.open.Sell, scale = sd_Price.open.Sell)
+for(i in 24:33) x_train2[,i] <- scale(x_train2[,i], center = me_Price.me.Buy, scale = sd_Price.me.Buy)
+for(i in 34:43) x_train2[,i] <- scale(x_train2[,i], center = me_Price.me.Sell, scale = sd_Price.me.Sell)
+for(i in 44:53) x_train2[,i] <- scale(x_train2[,i], center = me_Volume.Buy, scale = sd_Volume.Buy)
+for(i in 54:63) x_train2[,i] <- scale(x_train2[,i], center = me_Volume.Sell, scale = sd_Volume.Sell)
+X_data_train <- x_train2[,(1:15)]
+Y_data_train <- y_train2$direction
+
+# rescale validation data (using train mean and sd)
+for(i in 4:13) x_val2[,i] <- scale(x_val2[,i], center = me_Price.open.Buy, scale = sd_Price.open.Buy)
+for(i in 14:23) x_val2[,i] <- scale(x_val2[,i], center = me_Price.open.Sell, scale = sd_Price.open.Sell)
+for(i in 24:33) x_val2[,i] <- scale(x_val2[,i], center = me_Price.me.Buy, scale = sd_Price.me.Buy)
+for(i in 34:43) x_val2[,i] <- scale(x_val2[,i], center = me_Price.me.Sell, scale = sd_Price.me.Sell)
+for(i in 44:53) x_val2[,i] <- scale(x_val2[,i], center = me_Volume.Buy, scale = sd_Volume.Buy)
+for(i in 54:63) x_val2[,i] <- scale(x_val2[,i], center = me_Volume.Sell, scale = sd_Volume.Sell)
+X_data_val <- x_val2[,(1:15)]
+Y_data_val <- y_val2$direction
+
+# rescale test data (using train mean and sd)
+for(i in 4:13) x_test2[,i] <- scale(x_test2[,i], center = me_Price.open.Buy, scale = sd_Price.open.Buy)
+for(i in 14:23) x_test2[,i] <- scale(x_test2[,i], center = me_Price.open.Sell, scale = sd_Price.open.Sell)
+for(i in 24:33) x_test2[,i] <- scale(x_test2[,i], center = me_Price.me.Buy, scale = sd_Price.me.Buy)
+for(i in 34:43) x_test2[,i] <- scale(x_test2[,i], center = me_Price.me.Sell, scale = sd_Price.me.Sell)
+for(i in 44:53) x_test2[,i] <- scale(x_test2[,i], center = me_Volume.Buy, scale = sd_Volume.Buy)
+for(i in 54:63) x_test2[,i] <- scale(x_test2[,i], center = me_Volume.Sell, scale = sd_Volume.Sell)
+X_data_test <- x_test2[,(1:15)]
+Y_data_test <- y_test2$direction
+
+```
+# callback function
+```{r}
+callbacks_list <- list(
+  callback_early_stopping(
+    monitor = "acc",
+    patience = 1
+  ),
+  callback_model_checkpoint(
+    filepath = "my_model.h5",
+    monitor = "val_loss",
+    save_best_only = TRUE
+  )
+)
+
+```
+
+# Fully connected layer
+with L2 weight regularization and
+dropout 
+```{r}
+k_clear_session()
+x_train <- X_data_train
+y_train <- Y_data_train
+x_val <- X_data_val
+y_val <-Y_data_val
+
+nCol <- ncol(X_data_train)
+
+model <- keras_model_sequential() %>% 
+  layer_dense(units = 16, kernel_regularizer = regularizer_l2(0.001),
+              activation = "relu", input_shape = dim(x_train)[[2]]) %>% 
+  layer_dropout(rate = 0.5) %>%
+  layer_dense(units = 16, kernel_regularizer = regularizer_l2(0.001),
+              activation = "relu") %>% 
+  layer_dropout(rate = 0.5) %>%
+  layer_dense(units = 3, activation = "softmax")
+
+model %>% compile(
+  optimizer = "rmsprop",
+  loss = "categorical_crossentropy",
+  metrics = c("accuracy")
+)
+ 
+history <- model %>% fit(
+  x_train,
+  y_train,
+  epochs = 20,
+  batch_size = 512,
+  callbacks = callbacks_list,
+  validation_data = list(x_val, y_val)
+)
+
+plot(history)
+# change epoch according to the plot
+
+```
+
+Final result
+```{r}
+results <- model %>% evaluate(x_test, y_test)
+results
+```
+
+# create data generator
+```{r}
+#########################
+# create data generator #
+#########################
+sampling_generator <- function(X_data, Y_data, batch_size, w=100)
+{
+  function()
+  {
+    rows <- sample(1:(nrow(X_data)-w+1), batch_size, replace = TRUE)
+    tmp <- Y <- X <- NULL
+    for(i in rows)
+    {
+      tmp <- rbind(tmp, as.vector(as.matrix(X_data[(i:(i+w-1)),])))
+      Y <- c(Y, Y_data[i+w-1])
+    }
+    X <- array_reshape(tmp, c(batch_size, w, ncol(X_data), 1), order = "F")
+    Y <- to_categorical(Y, num_classes = 3)
+    list(X, Y)
+  }
+}
+```
+
+# Convolutional Neural Network
+```{r}
+# use w = 100 most recent states of limit order book and 40 price/volume data (10 levels for each bid/ask: 2*2*10 = 40)
+k_clear_session()
+model <- keras_model_sequential() %>% 
+  layer_conv_2d(filters = 16, kernel_size = c(4, nCol), activation = "relu", input_shape = c(100, nCol, 1)) %>% 
+  layer_conv_2d(filters = 16, kernel_size = c(1, 1), activation = "relu") %>% 
+  layer_conv_2d(filters = 16, kernel_size = c(4, 1), activation = "relu") %>% 
+  layer_flatten() %>% 
+  layer_dense(units = 8, activation = "relu") %>% 
+  layer_dense(units = 3, activation = "softmax")
+
+model %>% compile(
+  loss = "categorical_crossentropy",
+  optimizer = optimizer_rmsprop(lr = 1e-4),
+  metrics = c("acc")
+)
+w <- 100
+
+his <- model %>% fit_generator(sampling_generator(X_data_train, Y_data_train, batch_size = 100, w=100),
+                               steps_per_epoch = floor((nrow(X_data_train)-w+1) / 100), epochs = 10,
+                               callbacks = callbacks_list,
+                               validation_data = sampling_generator(X_data_val, Y_data_val, batch_size = 20,
+                                                                    w=100),
+                               validation_steps = floor((nrow(X_data_val)-w+1) / 100))
+plot(his)
+
+```
+
+```{r}
+results <- model %>% evaluate_generator(sampling_generator(X_data_test, Y_data_test, batch_size = 100, w=100), 
+                                        steps = floor((nrow(X_data_test)-w+1) / 100))
+results
+```
+
+
+# RNN
+```{r}
+# use w = 100 most recent states of limit order book and 40 price/volume data (10 levels for each bid/ask: 2*2*10 = 40)
+  k_clear_session()
+  model <- keras_model_sequential() %>%
+    layer_cudnn_gru(unit=8, input_shape = list(NULL, 15), return_sequences = TRUE) %>%
+    layer_cudnn_gru(unit=16) %>%
+    layer_dense(units = 3, activation = "softmax")
+  
+  model %>% compile(
+    loss = "categorical_crossentropy",
+    optimizer = optimizer_rmsprop(lr = 1e-4),
+    metrics = c("acc")
+  )
+  
+
+  batch_size <- 100
+  w =100
+  his <- model %>% fit_generator(sampling_generator(X_data_train, Y_data_train, batch_size = batch_size, w=w),
+                                 steps_per_epoch = floor((nrow(X_data_train)-w+1) / batch_size), epochs = 20,
+                                 callbacks = callbacks_list,
+                                 validation_data = sampling_generator(X_data_val, Y_data_val, batch_size = batch_size, w=w),
+                                 validation_steps = floor((nrow(X_data_val)-w+1) / batch_size))
+plot(his)
+```
+
+```{r}
+  fitted_B <- load_model_hdf5(file.path(work_folder, "lob_B.h5"))
+  
+  results_B <- fitted_B %>% evaluate_generator(sampling_generator(X_data_test, Y_data_test, batch_size = batch_size, w=w), 
+                                           steps = floor((nrow(X_data_test)-w+1) / batch_size))
+  results_B
+```
+
+```{r}
+
 ```
 
