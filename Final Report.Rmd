@@ -21,68 +21,348 @@ The New York Mercantile Exchange (NYMEX) is a commodity futures exchange owned a
 
 COMEX is the primary futures and options market for trading metals such as gold, silver, copper and aluminum. Formerly known as the Commodity Exchange Inc., COMEX merged with the New York Mercantile Exchange (NYMEX) in 1994 and became the division responsible for metals trading.
 
-
-
-# Data description
-
-The dataset contains AlgoSeek Level 2 data from CME, CBOT, NYMEX and Comex. The Level 2 data is from the CME FIXFast feed which provides 10 levels of the book for the bid and the ask. The variables in the dataset are listed as below:
--	UTC: Timestamps in YYYYMMDDHHMMSSMMM in UTC time [MMM is for milliseconds] 
+## Data Description
+The datasets contain AlgoSeek Level 2 data from CME, CBOT, NYMEX and Comex. The Level 2 data is from the CME FIXFast feed which provides 10 levels of the book for the bid and the ask. The variables in the dataset are listed as below:
+-	UTC: Timestamps in HHMMSSMMM in UTC time [MMM is for milliseconds] 
 -	Ticker: Instrument name (up to 8 characters) 
--	Side: BUY/SELL side of the book 
--	Flags: is implied or regular book 
--	Depth: Number of levels being shown in the book for this instrument (up to 10 levels, zero-based index) 
+-	Side: BUY/SELL side of the book
 -	10 levels of: Price x Contracts (Number of Orders). For example “1.38 x 12 (5)” means there are 12 contracts at price 1.38 from a total of 5 orders. Each row has 10 levels but there will only be data for the number of Depth levels (see depth field above).
 
-## Load Dataset
-```{r}
-library(data.table) # fread
-# library(bit64) # sell_volume
-library(imputeTS) # na.replace
-ticker1 <- fread("project data/ticker_1.csv")
-# ticker1$sell_volume <- as.numeric(ticker1$sell_volume)
-ticker2 <- fread("project data/ticker_2.csv")
-ticker3 <- fread("project data/ticker_3.csv")
-ticker4 <- fread("project data/ticker_4.csv")
+## Data Cleaning
+### Missing Values
+We grouped the datasets by **s**, **m**, **h**, and **Side** to match the datasets with the label. We planned to use the mean price, open price (the best price, i.e. Level 1 price), volume (i.e. contracts) for each second as our features. We used `na.interpolation` and `na.replace` from R package `imputeTS` to fix the price of each level and set the volume to 0 if the price and volume are not available at a certain time.
+
+### Data Preparation
+We calculated the mean and standard deviation of all the prices and volumes for all levels to scale the data for data preparation. We used 60% of the data as our train data, 20% validation data, and 20% test data to train and test our models. 
+
+## Exploratory Data
+Before we started models, we have checked the labels and features to better understand the data. 
+```{r include=FALSE}
+library(ggplot2)
+library(data.table)
+library(imputeTS)
 ticker1_label <- fread("project data/Ticker1_label.csv")
 ticker2_label <- fread("project data/Ticker2_label.csv")
 ticker3_label <- fread("project data/Ticker3_label.csv")
 ticker4_label <- fread("project data/Ticker4_label.csv")
+ticker1 <- read.csv("data_level/ticker1_level.csv")
+ticker2 <- read.csv("data_level/ticker2_level.csv")
+ticker3 <- read.csv("data_level/ticker3_level.csv")
+ticker4 <- read.csv("data_level/ticker4_level.csv")
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=3, fig.width=3, fig.pos='H'}
+ticker1_label$direction <- as.factor(ticker1_label$direction)
+levels(ticker1_label$direction) <- c("Decrease", "Stable", "Increase")
+ggplot(ticker1_label, aes(x = direction, fill = direction)) +
+  geom_bar(stat='count') +
+  labs(x = 'Ticker 1: distribution of labels') +
+        geom_label(stat='count',aes(label=..count..), size=2) +
+        theme_grey(base_size = 3) +
+        theme(legend.position="bottom") +
+        coord_flip()
+ticker2_label$direction <- as.factor(ticker2_label$direction)
+levels(ticker2_label$direction) <- c("Decrease", "Stable", "Increase")
+ggplot(ticker2_label, aes(x = direction, fill = direction)) +
+  geom_bar(stat='count') +
+  labs(x = 'Ticker 2: distribution of labels') +
+        geom_label(stat='count',aes(label=..count..), size=2) +
+        theme_grey(base_size = 3) +
+        theme(legend.position="bottom") +
+        coord_flip()
+ticker3_label$direction <- as.factor(ticker3_label$direction)
+levels(ticker3_label$direction) <- c("Decrease", "Stable", "Increase")
+ggplot(ticker3_label, aes(x = direction, fill = direction)) +
+  geom_bar(stat='count') +
+  labs(x = 'Ticker 3: distribution of labels') +
+        geom_label(stat='count',aes(label=..count..), size=2) +
+        theme_grey(base_size = 3) +
+        theme(legend.position="bottom") +
+        coord_flip()
+ticker4_label$direction <- as.factor(ticker4_label$direction)
+levels(ticker4_label$direction) <- c("Decrease", "Stable", "Increase")
+ggplot(ticker4_label, aes(x = direction, fill = direction)) +
+  geom_bar(stat='count') +
+  labs(x = 'Ticker 4: distribution of labels') +
+        geom_label(stat='count',aes(label=..count..), size=2) +
+        theme_grey(base_size = 3) +
+        theme(legend.position="bottom") +
+        coord_flip()
 ```
 
 ```{r}
-head(ticker1, 10)
-names(ticker1)
-ticker1[,c(2:5, 8:12, 15)] <- na.interpolation(ticker1[,c(2:5, 8:12, 15)], option = "linear")
-ticker2[,c(2:5, 8:12, 15)] <- na.interpolation(ticker2[,c(2:5, 8:12, 15)], option = "linear")
-ticker3[,c(2:5, 8:12, 15)] <- na.interpolation(ticker3[,c(2:5, 8:12, 15)], option = "linear")
-ticker4[,c(2:5, 8:12, 15)] <- na.interpolation(ticker4[,c(2:5, 8:12, 15)], option = "linear")
+ticker1[,c(4:43, 64:83)] <- na.interpolation(ticker1[,c(4:43, 64:83)], option = "linear")
+ticker2[,c(4:43, 64:83)] <- na.interpolation(ticker2[,c(4:43, 64:83)], option = "linear")
+ticker3[,c(4:43, 64:83)] <- na.interpolation(ticker3[,c(4:43, 64:83)], option = "linear")
+ticker4[,c(4:43, 64:83)] <- na.interpolation(ticker4[,c(4:43, 64:83)], option = "linear")
 ticker1 <- na.replace(ticker1, 0)
 ticker2 <- na.replace(ticker2, 0)
 ticker3 <- na.replace(ticker3, 0)
 ticker4 <- na.replace(ticker4, 0)
-head(ticker1, 10)
 ```
 
 ```{r}
-TICKER <- c("1", "2", "3", "4")
+plot(ticker1$Level1.Price.weighted.Buy, type = "l", xlab = "Level 1 Weighted Average Price", ylab = "Weighted Average Price")
+lines(ticker1$Level1.Price.weighted.Sell,type = "l", col="green")
+legend(3000, 2085, legend=c("Weighted Average Price 1 Buy", "Weighted Average Price 1 Sell"), col=c("black", "green"), lty=1, cex=0.7)
+
+plot(ticker1$Level1.Volume.Buy, xlab = "Level 1 Volume", ylab = "Volume", type = "l")
+lines(ticker1$Level1.Volume.Sell, type = "l", col="green")
+legend(3000, 2085, legend=c("Weighted Average Price 1 Buy", "Weighted Average Price 1 Sell"), col=c("black", "green"), lty=1, cex=0.7)
+
+plot(ticker2$Level1.Price.open.Buy, type = "l")
+max(ticker2$Level1.Price.me.Buy)
+min(ticker2$Level1.Price.me.Buy)
+lines(ticker2$Level1.Price.open.Sell,type = "l", col="green")
+# lines(ticker2$Level1.Price.me.Buy, type = "l", col = "red")
+plot(ticker2$Level1.Volume.Buy)
+lines(ticker2$Level1.Volume.Sell, type = "p", col="green")
+
+plot(ticker3$Level1.Price.open.Buy, type = "l")
+lines(ticker3$Level1.Price.open.Sell,type = "l", col="green")
+# lines(ticker3$Level1.Price.me.Buy, type = "l", col = "red")
+plot(ticker3$Level1.Volume.Buy)
+lines(ticker3$Level1.Volume.Sell, type = "p", col="green")
+
+plot(ticker4$Level1.Price.open.Buy, type = "l")
+lines(ticker4$Level1.Price.open.Sell,type = "l", col="green")
+# lines(ticker4$Level1.Price.me.Buy, type = "l", col = "red")
+plot(ticker4$Level1.Volume.Buy)
+lines(ticker4$Level1.Volume.Sell, type = "p", col="green")
+```
+```{r}
+#############ticker2 ###########
+x_train2 <- ticker2[(1:floor(nrow(ticker2)/5*3)),]
+x_val2 <- ticker2[((floor(nrow(ticker2)/5*3)+1):floor(nrow(ticker2)/5*4)),]
+x_test2 <- ticker2[((floor(nrow(ticker2)/5*4)+1):nrow(ticker2)),]
+y_train2 <- ticker2_label[(1:floor(nrow(ticker2)/5*3))]
+y_val2 <- ticker2_label[((floor(nrow(ticker2)/5*3)+1):floor(nrow(ticker2)/5*4))]
+y_test2 <- ticker2_label[((floor(nrow(ticker2)/5*4)+1):nrow(ticker2))]
+
+col_Price.open.Buy <- 4:13
+col_Price.open.Sell <- 14:23
+col_Price.me.Buy <-24:33
+col_Price.me.Sell <-34:43
+col_Volume.Buy <-44:53
+col_Volume.sell <-54:63
+col_Price.weighted.Buy <-64:73
+col_Price.weighted.Sell <-74:83
+
+me_Price.open.Buy <- mean(as.matrix(as.data.frame(x_train2[,col_Price.open.Buy])))
+sd_Price.open.Buy <- sd(as.matrix(x_train2[,col_Price.open.Buy]))
+
+me_Price.open.Sell <- mean(as.matrix(x_train2[,col_Price.open.Sell]))
+sd_Price.open.Sell <- sd(as.matrix(x_train2[,col_Price.open.Sell]))
+
+me_Price.me.Buy <- mean(as.matrix(x_train2[,col_Price.me.Buy]))
+sd_Price.me.Buy <- sd(as.matrix(x_train2[,col_Price.me.Buy]))
+
+me_Price.me.Sell <- mean(as.matrix(x_train2[,col_Price.me.Sell]))
+sd_Price.me.Sell <- sd(as.matrix(x_train2[,col_Price.me.Sell]))
+
+me_Volume.Buy <- mean(as.matrix(x_train2[,col_Volume.Buy]))
+sd_Volume.Buy <- sd(as.matrix(x_train2[,col_Volume.Buy]))
+
+me_Volume.Sell <- mean(as.matrix(x_train2[,col_Volume.sell]))
+sd_Volume.Sell <- sd(as.matrix(x_train2[,col_Volume.sell]))
+
+me_Price.weighted.Buy <- mean(as.matrix(x_train2[,col_Price.weighted.Buy]))
+sd_Price.weighted.Buy <- sd(as.matrix(x_train2[,col_Price.weighted.Buy]))
+
+me_Price.weighted.Sell <- mean(as.matrix(x_train2[,col_Price.weighted.Sell]))
+sd_Price.weighted.Sell <- sd(as.matrix(x_train2[,col_Price.weighted.Sell]))
+
+# rescale train data
+for(i in 4:13) x_train2[,i] <- scale(x_train2[,i], center = me_Price.open.Buy, scale = sd_Price.open.Buy)
+for(i in 14:23) x_train2[,i] <- scale(x_train2[,i], center = me_Price.open.Sell, scale = sd_Price.open.Sell)
+for(i in 24:33) x_train2[,i] <- scale(x_train2[,i], center = me_Price.me.Buy, scale = sd_Price.me.Buy)
+for(i in 34:43) x_train2[,i] <- scale(x_train2[,i], center = me_Price.me.Sell, scale = sd_Price.me.Sell)
+for(i in 44:53) x_train2[,i] <- scale(x_train2[,i], center = me_Volume.Buy, scale = sd_Volume.Buy)
+for(i in 54:63) x_train2[,i] <- scale(x_train2[,i], center = me_Volume.Sell, scale = sd_Volume.Sell)
+for(i in 64:73) x_train2[,i] <- scale(x_train2[,i], center = me_Price.weighted.Buy,
+                                      scale = sd_Price.weighted.Buy)
+for(i in 74:83) x_train2[,i] <- scale(x_train2[,i], center = me_Price.weighted.Sell, 
+                                      scale = sd_Price.weighted.Sell)
+X_data_train <- x_train2[,(1:83)]
+Y_data_train <- y_train2$direction
+
+# rescale validation data (using train mean and sd)
+for(i in 4:13) x_val2[,i] <- scale(x_val2[,i], center = me_Price.open.Buy, scale = sd_Price.open.Buy)
+for(i in 14:23) x_val2[,i] <- scale(x_val2[,i], center = me_Price.open.Sell, scale = sd_Price.open.Sell)
+for(i in 24:33) x_val2[,i] <- scale(x_val2[,i], center = me_Price.me.Buy, scale = sd_Price.me.Buy)
+for(i in 34:43) x_val2[,i] <- scale(x_val2[,i], center = me_Price.me.Sell, scale = sd_Price.me.Sell)
+for(i in 44:53) x_val2[,i] <- scale(x_val2[,i], center = me_Volume.Buy, scale = sd_Volume.Buy)
+for(i in 54:63) x_val2[,i] <- scale(x_val2[,i], center = me_Volume.Sell, scale = sd_Volume.Sell)
+for(i in 64:73) x_val2[,i] <- scale(x_val2[,i], center = me_Price.weighted.Buy,
+                                      scale = sd_Price.weighted.Buy)
+for(i in 74:83) x_val2[,i] <- scale(x_val2[,i], center = me_Price.weighted.Sell, 
+                                      scale = sd_Price.weighted.Sell)
+X_data_val <- x_val2[,(1:83)]
+Y_data_val <- y_val2$direction
+
+# rescale test data (using train mean and sd)
+for(i in 4:13) x_test2[,i] <- scale(x_test2[,i], center = me_Price.open.Buy, scale = sd_Price.open.Buy)
+for(i in 14:23) x_test2[,i] <- scale(x_test2[,i], center = me_Price.open.Sell, scale = sd_Price.open.Sell)
+for(i in 24:33) x_test2[,i] <- scale(x_test2[,i], center = me_Price.me.Buy, scale = sd_Price.me.Buy)
+for(i in 34:43) x_test2[,i] <- scale(x_test2[,i], center = me_Price.me.Sell, scale = sd_Price.me.Sell)
+for(i in 44:53) x_test2[,i] <- scale(x_test2[,i], center = me_Volume.Buy, scale = sd_Volume.Buy)
+for(i in 54:63) x_test2[,i] <- scale(x_test2[,i], center = me_Volume.Sell, scale = sd_Volume.Sell)
+for(i in 64:73) x_test2[,i] <- scale(x_test2[,i], center = me_Price.weighted.Buy,
+                                      scale = sd_Price.weighted.Buy)
+for(i in 74:83) x_test2[,i] <- scale(x_test2[,i], center = me_Price.weighted.Sell, 
+                                      scale = sd_Price.weighted.Sell)
+X_data_test <- x_test2[,(1:83)]
+Y_data_test <- y_test2$direction
 ```
 
-```{r}
-nCol <- ncol(ticker1_buy)
-me_train <- apply(as.matrix(ticker1_buy), 2, mean)
-sd_train <- apply(as.matrix(ticker1_buy), 2, sd)
-# me_val <- apply(as.matrix(ticker1_buy), 2, mean)
-# sd_val <- apply(as.matrix(ticker1_buy), 2, sd)
+
+
+
+```{r eval=FALSE, include=FALSE}
 library(keras)
+checkPoint <- callback_model_checkpoint(filepath = file.path("lob_A.h5"),
+                                        monitor = "val_acc", save_best_only = TRUE)
+reduceLr <- callback_reduce_lr_on_plateau(monitor = "val_acc", factor = 0.1, patience = 3)
+logger <- callback_csv_logger(file.path("logger-lob_A.csv"))
+  
+callbacks_list <- list(
+  callback_early_stopping(
+    monitor = "acc",
+    patience = 1
+  ),
+  callback_model_checkpoint(
+    filepath = "my_model.h5",
+    monitor = "val_loss",
+    save_best_only = TRUE
+  )
+)
 
+sampling_generator0 <- function(X_data, Y_data, batch_size, w)
+{
+  function()
+  {
+    rows <- sample(1:(nrow(X_data)-w+1), batch_size, replace = TRUE)
+    tmp <- Y <- X <- NULL
+    for(i in rows)
+    {
+      tmp <- rbind(tmp, as.vector(as.matrix(X_data[(i:(i+w-1)),])))
+      Y <- c(Y, Y_data[i+w-1])
+    }
+    X <- array_reshape(tmp, c(batch_size, w, ncol(X_data), 1), order = "F") # a little difference: the last axis is included for the feature dimension
+    Y <- to_categorical(Y, num_classes = 3)
+    list(X, Y)
+  }
+}
+```
+
+```{r eval=FALSE, include=FALSE}
+k_clear_session()
+x_train <- as.matrix(X_data_train)
+y_train <- as.numeric(Y_data_train)
+x_val <- as.matrix(X_data_val)
+y_val <- as.numeric(Y_data_val)
+x_test <- as.matrix(X_data_test)
+y_test <- as.numeric(Y_data_test)
+nCol <- ncol(x_train)
+
+model <- keras_model_sequential() %>% 
+  layer_conv_2d(filters = 16, kernel_size = c(4, nCol), activation = "relu", input_shape = c(100, nCol, 1)) %>% 
+  layer_conv_2d(filters = 16, kernel_size = c(1, 1), activation = "relu") %>% 
+  layer_conv_2d(filters = 16, kernel_size = c(4, 1), activation = "relu") %>% 
+  layer_flatten() %>% 
+  layer_dense(units = 8, activation = "relu") %>% 
+  layer_dense(units = 3, activation = "softmax")
+
+model %>% compile(
+  loss = "categorical_crossentropy",
+  optimizer = optimizer_rmsprop(lr = 1e-4),
+  metrics = c("acc")
+)
+w <- 100
+
+his <- model %>% fit_generator(sampling_generator0(x_train, y_train, batch_size = 100, w=100),
+                               steps_per_epoch = floor((nrow(x_train)-w+1) / 100), epochs = 10,
+                               callbacks = callbacks_list,
+                               validation_data = sampling_generator0(x_val, y_val, batch_size = 20,
+                                                                    w=100),
+                               validation_steps = floor((nrow(x_val)-w+1) / 100))
+plot(his)
+
+
+```
+
+
+
+```{r}
+
+nCol <- ncol(X_data_train)
+w <- 30
 model <- keras_model_sequential() %>%
-layer_conv_2d(filters = 8, kernel_size = c(4, nCol), activation = "relu", input_shape = c(w, nCol, 1)) %>%
-layer_conv_2d(filters = 8, kernel_size = c(1, 1), activation = "relu") %>%
+layer_conv_2d(filters = 64, kernel_size = c(4, nCol), activation = "relu", input_shape = c(w, nCol, 1)) %>%
+layer_conv_2d(filters = 16, kernel_size = c(1, 1), activation = "relu") %>%
 layer_conv_2d(filters = 8, kernel_size = c(4, 1), activation = "relu") %>%
 layer_flatten() %>%
 layer_dense(units = 8, activation = "relu") %>%
-layer_dropout(rate = 0.5) %>%
+layer_dropout(rate = 0.2) %>%
 layer_dense(units = 3, activation = "softmax")
+
+summary(model)
+model %>% compile(
+loss = "categorical_crossentropy",
+optimizer = "adam",
+metrics = c("acc")
+)
+batch_size <- 120
+his0 <- model %>% fit_generator(sampling_generator0(X_data_train, Y_data_train, batch_size = batch_size, w=w),
+                                 steps_per_epoch = floor((nrow(X_data_train)-w+1) / batch_size), epochs = 10,
+                                 callbacks = list(checkPoint, reduceLr, logger),
+                                 validation_data = sampling_generator0(X_data_val, Y_data_val, batch_size = batch_size, w=w),
+                                 validation_steps = floor((nrow(X_data_val)-w+1) / batch_size))
+plot(his0)
+```
+
+```{r eval=FALSE, include=FALSE}
+model <- keras_model_sequential() %>%
+  layer_cudnn_gru(unit=8, input_shape = list(NULL, nCol), return_sequences = TRUE) %>%
+  # layer_cudnn_gru(unit=16) %>%
+  layer_dense(units = 3, activation = "softmax")
+
+model %>% compile(
+  loss = "categorical_crossentropy",
+  optimizer = optimizer_rmsprop(lr = 1e-4),
+  metrics = c("acc")
+)
+
+#############
+# run model #
+#############
+batch_size <- 100
+his <- model %>% fit_generator(sampling_generator0(X_data_train, Y_data_train, batch_size = batch_size, w=w),
+                               steps_per_epoch = floor((nrow(X_data_train)-w+1) / batch_size), epochs = 20,
+                               callbacks = list(checkPoint, reduceLr, logger)
+                               # validation_data = sampling_generator(X_data_val, Y_data_val, batch_size = batch_size, w=w),
+                               # validation_steps = floor((nrow(X_data_val)-w+1) / batch_size)
+                               )
+plot(his)
+fitted_B <- load_model_hdf5(file.path(work_folder, "lob_B.h5"))
+
+results_B <- fitted_B %>% evaluate_generator(sampling_generator(X_data_test, Y_data_test, batch_size = batch_size, w=w), 
+                                         steps = floor((nrow(X_data_test)-w+1) / batch_size))
+results_B
+
+
+model <- keras_model_sequential() %>%
+layer_lstm(units = 256, input_shape = (1, 4), return_sequences = T)
+layer_conv_2d(filters = 8, kernel_size = c(4, 4), activation = "relu", input_shape = c(w, 4, 1)) %>%
+layer_conv_2d(filters = 8, kernel_size = c(1, 1), activation = "relu") %>%
+# layer_conv_lstm_2d(filters = 8, kernel_size = c(4, 1), activation = "relu") %>%
+layer_conv_2d(filters = 8, kernel_size = c(4, 1), activation = "relu") %>%
+# layer_conv_lstm_2d(filters = 8, kernel_size = c(4, 1), activation = "relu") %>%
+layer_flatten() %>%
+layer_dense(units = 8, activation = "relu") %>%
+layer_lstm(units = 8, return_sequences=T) %>% 
+# layer_dropout(rate = 0.5) %>%
+layer_dense(units = 8, activation = "softmax")
 
 model %>% compile(
 loss = "categorical_crossentropy",
@@ -90,6 +370,11 @@ optimizer = optimizer_rmsprop(lr = 1e-4),
 metrics = c("acc")
 )
 batch_size <- 120
-  
+his0 <- model %>% fit_generator(sampling_generator0(X_data_train, Y_data_train, batch_size = batch_size, w=w),
+                                 steps_per_epoch = floor((nrow(X_data_train)-w+1) / batch_size), epochs = 10,
+                                 callbacks = list(checkPoint, reduceLr, logger))
+                                 # validation_data = sampling_generator0(X_data_val, Y_data_val, batch_size = batch_size, w=w),
+                                 # validation_steps = floor((nrow(X_data_val)-w+1) / batch_size)
+plot(his0)
 ```
 
