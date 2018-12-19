@@ -91,14 +91,23 @@ ggplot(ticker4_label, aes(x = direction, fill = direction)) +
 ```
 
 ```{r}
-ticker1[,c(4:43, 64:83)] <- na.interpolation(ticker1[,c(4:43, 64:83)], option = "linear")
-ticker2[,c(4:43, 64:83)] <- na.interpolation(ticker2[,c(4:43, 64:83)], option = "linear")
-ticker3[,c(4:43, 64:83)] <- na.interpolation(ticker3[,c(4:43, 64:83)], option = "linear")
-ticker4[,c(4:43, 64:83)] <- na.interpolation(ticker4[,c(4:43, 64:83)], option = "linear")
+ticker1[,c(4:43, 64:103)] <- na.interpolation(ticker1[,c(4:43, 64:103)], option = "linear")
+ticker2[,c(4:43, 64:103)] <- na.interpolation(ticker2[,c(4:43, 64:103)], option = "linear")
+ticker3[,c(4:43, 64:103)] <- na.interpolation(ticker3[,c(4:43, 64:103)], option = "linear")
+ticker4[,c(4:43, 64:103)] <- na.interpolation(ticker4[,c(4:43, 64:103)], option = "linear")
 ticker1 <- na.replace(ticker1, 0)
 ticker2 <- na.replace(ticker2, 0)
 ticker3 <- na.replace(ticker3, 0)
 ticker4 <- na.replace(ticker4, 0)
+# ticker1$ticker <- "Ticker1"
+# ticker2$ticker <- "Ticker2"
+# ticker3$ticker <- "Ticker3"
+# ticker4$ticker <- "Ticker4"
+ticker1$ticker <- 1
+ticker2$ticker <- 2
+ticker3$ticker <- 3
+ticker4$ticker <- 4
+all_data <- list(ticker1, ticker2, ticker3, ticker4, ticker1_label, ticker2_label, ticker3_label, ticker4_label)
 ```
 
 ```{r}
@@ -130,106 +139,162 @@ lines(ticker4$Level1.Price.open.Sell,type = "l", col="green")
 plot(ticker4$Level1.Volume.Buy)
 lines(ticker4$Level1.Volume.Sell, type = "p", col="green")
 ```
+
 ```{r}
-#############ticker2 ###########
-x_train2 <- ticker2[(1:floor(nrow(ticker2)/5*3)),]
-x_val2 <- ticker2[((floor(nrow(ticker2)/5*3)+1):floor(nrow(ticker2)/5*4)),]
-x_test2 <- ticker2[((floor(nrow(ticker2)/5*4)+1):nrow(ticker2)),]
-y_train2 <- ticker2_label[(1:floor(nrow(ticker2)/5*3))]
-y_val2 <- ticker2_label[((floor(nrow(ticker2)/5*3)+1):floor(nrow(ticker2)/5*4))]
-y_test2 <- ticker2_label[((floor(nrow(ticker2)/5*4)+1):nrow(ticker2))]
+x_all_train <- x_all_val <- x_all_test <- data.frame(matrix(ncol = 124, nrow = 0))
+names(x_all_train) <- names(x_all_val) <- names(x_all_test) <- names(ticker1)
+y_all_train <- y_all_val <- y_all_test <- c()
 
-col_Price.open.Buy <- 4:13
-col_Price.open.Sell <- 14:23
-col_Price.me.Buy <-24:33
-col_Price.me.Sell <-34:43
-col_Volume.Buy <-44:53
-col_Volume.sell <-54:63
-col_Price.weighted.Buy <-64:73
-col_Price.weighted.Sell <-74:83
-
-me_Price.open.Buy <- mean(as.matrix(as.data.frame(x_train2[,col_Price.open.Buy])))
-sd_Price.open.Buy <- sd(as.matrix(x_train2[,col_Price.open.Buy]))
-
-me_Price.open.Sell <- mean(as.matrix(x_train2[,col_Price.open.Sell]))
-sd_Price.open.Sell <- sd(as.matrix(x_train2[,col_Price.open.Sell]))
-
-me_Price.me.Buy <- mean(as.matrix(x_train2[,col_Price.me.Buy]))
-sd_Price.me.Buy <- sd(as.matrix(x_train2[,col_Price.me.Buy]))
-
-me_Price.me.Sell <- mean(as.matrix(x_train2[,col_Price.me.Sell]))
-sd_Price.me.Sell <- sd(as.matrix(x_train2[,col_Price.me.Sell]))
-
-me_Volume.Buy <- mean(as.matrix(x_train2[,col_Volume.Buy]))
-sd_Volume.Buy <- sd(as.matrix(x_train2[,col_Volume.Buy]))
-
-me_Volume.Sell <- mean(as.matrix(x_train2[,col_Volume.sell]))
-sd_Volume.Sell <- sd(as.matrix(x_train2[,col_Volume.sell]))
-
-me_Price.weighted.Buy <- mean(as.matrix(x_train2[,col_Price.weighted.Buy]))
-sd_Price.weighted.Buy <- sd(as.matrix(x_train2[,col_Price.weighted.Buy]))
-
-me_Price.weighted.Sell <- mean(as.matrix(x_train2[,col_Price.weighted.Sell]))
-sd_Price.weighted.Sell <- sd(as.matrix(x_train2[,col_Price.weighted.Sell]))
-
-# rescale train data
-for(i in 4:13) x_train2[,i] <- scale(x_train2[,i], center = me_Price.open.Buy, scale = sd_Price.open.Buy)
-for(i in 14:23) x_train2[,i] <- scale(x_train2[,i], center = me_Price.open.Sell, scale = sd_Price.open.Sell)
-for(i in 24:33) x_train2[,i] <- scale(x_train2[,i], center = me_Price.me.Buy, scale = sd_Price.me.Buy)
-for(i in 34:43) x_train2[,i] <- scale(x_train2[,i], center = me_Price.me.Sell, scale = sd_Price.me.Sell)
-for(i in 44:53) x_train2[,i] <- scale(x_train2[,i], center = me_Volume.Buy, scale = sd_Volume.Buy)
-for(i in 54:63) x_train2[,i] <- scale(x_train2[,i], center = me_Volume.Sell, scale = sd_Volume.Sell)
-for(i in 64:73) x_train2[,i] <- scale(x_train2[,i], center = me_Price.weighted.Buy,
-                                      scale = sd_Price.weighted.Buy)
-for(i in 74:83) x_train2[,i] <- scale(x_train2[,i], center = me_Price.weighted.Sell, 
-                                      scale = sd_Price.weighted.Sell)
-X_data_train <- x_train2[,(1:83)]
-Y_data_train <- y_train2$direction
-
-# rescale validation data (using train mean and sd)
-for(i in 4:13) x_val2[,i] <- scale(x_val2[,i], center = me_Price.open.Buy, scale = sd_Price.open.Buy)
-for(i in 14:23) x_val2[,i] <- scale(x_val2[,i], center = me_Price.open.Sell, scale = sd_Price.open.Sell)
-for(i in 24:33) x_val2[,i] <- scale(x_val2[,i], center = me_Price.me.Buy, scale = sd_Price.me.Buy)
-for(i in 34:43) x_val2[,i] <- scale(x_val2[,i], center = me_Price.me.Sell, scale = sd_Price.me.Sell)
-for(i in 44:53) x_val2[,i] <- scale(x_val2[,i], center = me_Volume.Buy, scale = sd_Volume.Buy)
-for(i in 54:63) x_val2[,i] <- scale(x_val2[,i], center = me_Volume.Sell, scale = sd_Volume.Sell)
-for(i in 64:73) x_val2[,i] <- scale(x_val2[,i], center = me_Price.weighted.Buy,
-                                      scale = sd_Price.weighted.Buy)
-for(i in 74:83) x_val2[,i] <- scale(x_val2[,i], center = me_Price.weighted.Sell, 
-                                      scale = sd_Price.weighted.Sell)
-X_data_val <- x_val2[,(1:83)]
-Y_data_val <- y_val2$direction
-
-# rescale test data (using train mean and sd)
-for(i in 4:13) x_test2[,i] <- scale(x_test2[,i], center = me_Price.open.Buy, scale = sd_Price.open.Buy)
-for(i in 14:23) x_test2[,i] <- scale(x_test2[,i], center = me_Price.open.Sell, scale = sd_Price.open.Sell)
-for(i in 24:33) x_test2[,i] <- scale(x_test2[,i], center = me_Price.me.Buy, scale = sd_Price.me.Buy)
-for(i in 34:43) x_test2[,i] <- scale(x_test2[,i], center = me_Price.me.Sell, scale = sd_Price.me.Sell)
-for(i in 44:53) x_test2[,i] <- scale(x_test2[,i], center = me_Volume.Buy, scale = sd_Volume.Buy)
-for(i in 54:63) x_test2[,i] <- scale(x_test2[,i], center = me_Volume.Sell, scale = sd_Volume.Sell)
-for(i in 64:73) x_test2[,i] <- scale(x_test2[,i], center = me_Price.weighted.Buy,
-                                      scale = sd_Price.weighted.Buy)
-for(i in 74:83) x_test2[,i] <- scale(x_test2[,i], center = me_Price.weighted.Sell, 
-                                      scale = sd_Price.weighted.Sell)
-X_data_test <- x_test2[,(1:83)]
-Y_data_test <- y_test2$direction
+for (i in 1:4) {
+  current_ticker <- all_data[[i]]
+  current_ticker_label <- all_data[[(i+4)]]
+  
+  x_train <- current_ticker[(1:floor(nrow(all_data[[i]])/5*3)),]
+  x_val <- current_ticker[((floor(nrow(current_ticker)/5*3)+1):floor(nrow(current_ticker)/5*4)),]
+  x_test <- current_ticker[((floor(nrow(current_ticker)/5*4)+1):nrow(current_ticker)),]
+  y_train <- current_ticker_label[(1:floor(nrow(current_ticker_label)/5*3))]
+  y_val <- current_ticker_label[((floor(nrow(current_ticker_label)/5*3)+1):floor(nrow(current_ticker_label)/5*4))]
+  y_test <- current_ticker_label[((floor(nrow(current_ticker_label)/5*4)+1):nrow(current_ticker_label))]
+  
+  col_Price.open.Buy <- 4:13
+  col_Price.open.Sell <- 14:23
+  col_Price.me.Buy <-24:33
+  col_Price.me.Sell <-34:43
+  col_Volume.Buy <-44:53
+  col_Volume.sell <-54:63
+  col_Price.weighted.Buy <-64:73
+  col_Price.weighted.Sell <-74:83
+  col_Price.close.Buy <-84:93
+  col_Price.close.Sell <-94:103
+  col_Order.Buy <-104:113
+  col_Order.Sell <-114:123
+  
+  me_Price.open.Buy <- mean(as.matrix(as.data.frame(x_train[,col_Price.open.Buy])))
+  sd_Price.open.Buy <- sd(as.matrix(x_train[,col_Price.open.Buy]))
+  
+  me_Price.open.Sell <- mean(as.matrix(x_train[,col_Price.open.Sell]))
+  sd_Price.open.Sell <- sd(as.matrix(x_train[,col_Price.open.Sell]))
+  
+  me_Price.me.Buy <- mean(as.matrix(x_train[,col_Price.me.Buy]))
+  sd_Price.me.Buy <- sd(as.matrix(x_train[,col_Price.me.Buy]))
+  
+  me_Price.me.Sell <- mean(as.matrix(x_train[,col_Price.me.Sell]))
+  sd_Price.me.Sell <- sd(as.matrix(x_train[,col_Price.me.Sell]))
+  
+  me_Volume.Buy <- mean(as.matrix(x_train[,col_Volume.Buy]))
+  sd_Volume.Buy <- sd(as.matrix(x_train[,col_Volume.Buy]))
+  
+  me_Volume.Sell <- mean(as.matrix(x_train[,col_Volume.sell]))
+  sd_Volume.Sell <- sd(as.matrix(x_train[,col_Volume.sell]))
+  
+  me_Price.weighted.Buy <- mean(as.matrix(x_train[,col_Price.weighted.Buy]))
+  sd_Price.weighted.Buy <- sd(as.matrix(x_train[,col_Price.weighted.Buy]))
+  
+  me_Price.weighted.Sell <- mean(as.matrix(x_train[,col_Price.weighted.Sell]))
+  sd_Price.weighted.Sell <- sd(as.matrix(x_train[,col_Price.weighted.Sell]))
+  
+  me_Price.close.Buy <- mean(as.matrix(x_train[,col_Price.close.Buy]))
+  sd_Price.close.Buy <- sd(as.matrix(x_train[,col_Price.close.Buy]))
+  
+  me_Price.close.Sell <- mean(as.matrix(x_train[,col_Price.close.Sell]))
+  sd_Price.close.Sell <- sd(as.matrix(x_train[,col_Price.close.Sell]))
+  
+  me_Order.Buy <- mean(as.matrix(x_train[,col_Order.Buy]))
+  sd_Order.Buy <- sd(as.matrix(x_train[,col_Order.Buy]))
+  
+  me_Order.Sell <- mean(as.matrix(x_train[,col_Order.Sell]))
+  sd_Order.Sell <- sd(as.matrix(x_train[,col_Order.Sell]))
+  
+  # rescale train data
+  for(i in 4:13) x_train[,i] <- scale(x_train[,i], center = me_Price.open.Buy, scale = sd_Price.open.Buy)
+  for(i in 14:23) x_train[,i] <- scale(x_train[,i], center = me_Price.open.Sell, scale = sd_Price.open.Sell)
+  for(i in 24:33) x_train[,i] <- scale(x_train[,i], center = me_Price.me.Buy, scale = sd_Price.me.Buy)
+  for(i in 34:43) x_train[,i] <- scale(x_train[,i], center = me_Price.me.Sell, scale = sd_Price.me.Sell)
+  for(i in 44:53) x_train[,i] <- scale(x_train[,i], center = me_Volume.Buy, scale = sd_Volume.Buy)
+  for(i in 54:63) x_train[,i] <- scale(x_train[,i], center = me_Volume.Sell, scale = sd_Volume.Sell)
+  for(i in 64:73) x_train[,i] <- scale(x_train[,i], center = me_Price.weighted.Buy,
+                                        scale = sd_Price.weighted.Buy)
+  for(i in 74:83) x_train[,i] <- scale(x_train[,i], center = me_Price.weighted.Sell, 
+                                        scale = sd_Price.weighted.Sell)
+  for(i in 84:93) x_train[,i] <- scale(x_train[,i], center = me_Price.close.Buy, 
+                                        scale = sd_Price.close.Buy)
+  for(i in 94:103) x_train[,i] <- scale(x_train[,i], center = me_Price.close.Sell, 
+                                        scale = sd_Price.close.Sell)
+  for(i in 104:113) x_train[,i] <- scale(x_train[,i], center = me_Order.Buy, 
+                                        scale = sd_Order.Buy)
+  for(i in 114:123) x_train[,i] <- scale(x_train[,i], center = me_Order.Sell, 
+                                        scale = sd_Order.Sell)
+  
+  X_data_train <- x_train[,(1:124)]
+  Y_data_train <- y_train$direction
+  
+  # rescale validation data (using train mean and sd)
+  for(i in 4:13) x_val[,i] <- scale(x_val[,i], center = me_Price.open.Buy, scale = sd_Price.open.Buy)
+  for(i in 14:23) x_val[,i] <- scale(x_val[,i], center = me_Price.open.Sell, scale = sd_Price.open.Sell)
+  for(i in 24:33) x_val[,i] <- scale(x_val[,i], center = me_Price.me.Buy, scale = sd_Price.me.Buy)
+  for(i in 34:43) x_val[,i] <- scale(x_val[,i], center = me_Price.me.Sell, scale = sd_Price.me.Sell)
+  for(i in 44:53) x_val[,i] <- scale(x_val[,i], center = me_Volume.Buy, scale = sd_Volume.Buy)
+  for(i in 54:63) x_val[,i] <- scale(x_val[,i], center = me_Volume.Sell, scale = sd_Volume.Sell)
+  for(i in 64:73) x_val[,i] <- scale(x_val[,i], center = me_Price.weighted.Buy,
+                                        scale = sd_Price.weighted.Buy)
+  for(i in 74:83) x_val[,i] <- scale(x_val[,i], center = me_Price.weighted.Sell, 
+                                        scale = sd_Price.weighted.Sell)
+  for(i in 84:93) x_val[,i] <- scale(x_val[,i], center = me_Price.close.Buy, 
+                                        scale = sd_Price.close.Buy)
+  for(i in 94:103) x_val[,i] <- scale(x_val[,i], center = me_Price.close.Sell, 
+                                        scale = sd_Price.close.Sell)
+  for(i in 104:113) x_val[,i] <- scale(x_val[,i], center = me_Order.Buy, 
+                                        scale = sd_Order.Buy)
+  for(i in 114:123) x_val[,i] <- scale(x_val[,i], center = me_Order.Sell, 
+                                        scale = sd_Order.Sell)
+  X_data_val <- x_val[,(1:124)]
+  Y_data_val <- y_val$direction
+  
+  # rescale test data (using train mean and sd)
+  for(i in 4:13) x_test[,i] <- scale(x_test[,i], center = me_Price.open.Buy, scale = sd_Price.open.Buy)
+  for(i in 14:23) x_test[,i] <- scale(x_test[,i], center = me_Price.open.Sell, scale = sd_Price.open.Sell)
+  for(i in 24:33) x_test[,i] <- scale(x_test[,i], center = me_Price.me.Buy, scale = sd_Price.me.Buy)
+  for(i in 34:43) x_test[,i] <- scale(x_test[,i], center = me_Price.me.Sell, scale = sd_Price.me.Sell)
+  for(i in 44:53) x_test[,i] <- scale(x_test[,i], center = me_Volume.Buy, scale = sd_Volume.Buy)
+  for(i in 54:63) x_test[,i] <- scale(x_test[,i], center = me_Volume.Sell, scale = sd_Volume.Sell)
+  for(i in 64:73) x_test[,i] <- scale(x_test[,i], center = me_Price.weighted.Buy,
+                                        scale = sd_Price.weighted.Buy)
+  for(i in 74:83) x_test[,i] <- scale(x_test[,i], center = me_Price.weighted.Sell, 
+                                        scale = sd_Price.weighted.Sell)
+  for(i in 84:93) x_test[,i] <- scale(x_test[,i], center = me_Price.close.Buy, 
+                                        scale = sd_Price.close.Buy)
+  for(i in 94:103) x_test[,i] <- scale(x_test[,i], center = me_Price.close.Sell, 
+                                        scale = sd_Price.close.Sell)
+  for(i in 104:113) x_test[,i] <- scale(x_test[,i], center = me_Order.Buy, 
+                                        scale = sd_Order.Buy)
+  for(i in 114:123) x_test[,i] <- scale(x_test[,i], center = me_Order.Sell, 
+                                        scale = sd_Order.Sell)
+  
+  X_data_test <- x_test[,(1:124)]
+  Y_data_test <- y_test$direction
+  
+  x_all_train <- rbind(x_all_train, X_data_train)
+  x_all_val <- rbind(x_all_val, X_data_val)
+  x_all_test <- rbind(x_all_test, X_data_test)
+  
+  y_all_train <- c(y_all_train, Y_data_train)
+  y_all_val <- c(y_all_val, Y_data_val)
+  y_all_test <- c(y_all_test, Y_data_test)
+}
 ```
 
 
 
-
-
-
-```{r}
+```{r modelA}
 #### Model A####
 library(keras)
 k_clear_session()
-x_train <- as.matrix(X_data_train)
-y_train <- to_categorical(Y_data_train)
-x_val <- as.matrix(X_data_val)
-y_val <- to_categorical(Y_data_val)
-x_test <- as.matrix(X_data_test)
-y_test <- to_categorical(Y_data_test)
+x_train <- as.matrix(x_all_train)
+y_train <- to_categorical(y_all_train)
+x_val <- as.matrix(x_all_val)
+y_val <- to_categorical(y_all_val)
+x_test <- as.matrix(x_all_test)
+y_test <- to_categorical(y_all_test)
 
 callbacks_list <- list(
   callback_early_stopping(
@@ -257,7 +322,7 @@ model %>% compile(
 history <- model %>% fit(
   x_train,
   y_train,
-  epochs = 10,
+  epochs = 5,
   batch_size = 30,
   callbacks = callbacks_list,
   validation_data = list(x_val, y_val)
@@ -269,10 +334,10 @@ acc_loss_modelA <- model %>% evaluate(x_test, y_test)
 acc_loss_modelA
 # classification results
 pred_results_class_modelA <- model %>% predict_classes(x_test)
+save(acc_loss_modelA, pred_results_class_modelA, file = "modelA_results.RData")
 ```
 
 ```{r eval=FALSE, include=FALSE}
-library(keras)
 sampling_generator0 <- function(X_data, Y_data, batch_size, w)
 {
   function()
