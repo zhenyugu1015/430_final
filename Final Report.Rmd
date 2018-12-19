@@ -28,16 +28,57 @@ The datasets contain AlgoSeek Level 2 data from CME, CBOT, NYMEX and Comex. The 
 -	Side: BUY/SELL side of the book
 -	10 levels of: Price x Contracts (Number of Orders). For example “1.38 x 12 (5)” means there are 12 contracts at price 1.38 from a total of 5 orders. Each row has 10 levels but there will only be data for the number of Depth levels (see depth field above).
 
+
+## Data Preparation
+
+### Data Processing
+The original data has ten column in textual form, eg. '2063.7500000 x 55 (28)'. We extracted the numeric value and used them to construct our feature matrix. We then processed the `Timestamp` to `s`, `m`, and `h` format matching to label data.
+
+For each level, we makes the open price, close price, total number of contracts, total number of order, mean p and weighted average within a second for each side. Plus the grouping data `s`, `m`, and `h`, we have 124 feature for each observation.
+
+### Data Cleaning
+Some of the oberservation contains `NA`. This is because in some seconds, there is no tansaction of `BUY`/`SELL`. We used `na.interpolation` and `na.replace` from R package `imputeTS` to fix the price of each level and set the volume to 0 if the price and volume are not available at a certain time.
+
 ## Data Cleaning
 ### Missing Values
 We grouped the datasets by **s**, **m**, **h**, and **Side** to match the datasets with the label. We planned to use the mean price, open price (the best price, i.e. Level 1 price), volume (i.e. contracts) for each second as our features. In general, with neural networks, it’s safe to input missing values as 0, with the condition that 0 isn’t already a meaningful value. We used `na.interpolation` and `na.replace` from R package `imputeTS` to fix the price of each level and set the volume to 0 if the price and volume are not available at a certain time.
 
-### Data Preparation
-We calculated the mean and standard deviation of all the prices and volumes for all levels to scale the data for data preparation. We used 60% of the data as our train data, 20% validation data, and 20% test data to train and test our models. 
+
 
 ## Exploratory Data
 Before we started models, we have checked the labels and features to better understand the data. 
-```{r include=FALSE}
+
+### Labels
+Here are the plots of the distribution of the labels. We can observe from the plot that although there are more `stable` label, three directions `increasing`, `stable`, and `decreasing` approximately follow the Bernoulli distribution. 
+![](label_dist.png)
+
+### Stock Data.
+We first plot the 
+
+```{r}
+s1 <- ggplot(ticker1[37500:38500,], aes(x = 37500:38500)) +
+      geom_line(aes(y= Level1.Price.weighted.Buy, colour = "Weighted Avg")) +
+      geom_line(aes(y= Level1.Volume.Buy/10, colour = "Volume")) +
+      scale_y_continuous(sec.axis = sec_axis(~.*10, name = "Price"))
+s2 <- ggplot(ticker1_label[37500:38500,], aes(x = 37500:38500, y = direction))+ geom_path()
+arrangeGrob(s1, s2)
+s1
+grid.arrange(s2,s1, heights = c(1/5, 4/5)) 
+plot(ticker1$Level1.Price.weighted.Buy, type = "l", xlab = "Level 1 Weighted Average Price", ylab = "Weighted Average Price")
+```
+
+
+## Data Transformation
+
+
+## Model Comparison
+
+
+```{r eval = FALSE, include=FALSE}
+
+
+t1 <- fread("")
+
 library(ggplot2)
 library(data.table)
 library(imputeTS)
@@ -49,52 +90,30 @@ ticker1 <- read.csv("data_level/ticker1_level.csv")
 ticker2 <- read.csv("data_level/ticker2_level.csv")
 ticker3 <- read.csv("data_level/ticker3_level.csv")
 ticker4 <- read.csv("data_level/ticker4_level.csv")
-```
 
-```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=3, fig.width=3, fig.pos='H'}
 ticker1_label$direction <- as.factor(ticker1_label$direction)
 levels(ticker1_label$direction) <- c("Decrease", "Stable", "Increase")
-ggplot(ticker1_label, aes(x = direction, fill = direction)) +
-  geom_bar(stat='count') +
-  labs(x = 'Ticker 1: distribution of labels') +
-        geom_label(stat='count',aes(label=..count..), size=2) +
-        theme_grey(base_size = 3) +
-        theme(legend.position="bottom") +
-        coord_flip()
 ticker2_label$direction <- as.factor(ticker2_label$direction)
 levels(ticker2_label$direction) <- c("Decrease", "Stable", "Increase")
-ggplot(ticker2_label, aes(x = direction, fill = direction)) +
-  geom_bar(stat='count') +
-  labs(x = 'Ticker 2: distribution of labels') +
-        geom_label(stat='count',aes(label=..count..), size=2) +
-        theme_grey(base_size = 3) +
-        theme(legend.position="bottom") +
-        coord_flip()
 ticker3_label$direction <- as.factor(ticker3_label$direction)
 levels(ticker3_label$direction) <- c("Decrease", "Stable", "Increase")
-ggplot(ticker3_label, aes(x = direction, fill = direction)) +
-  geom_bar(stat='count') +
-  labs(x = 'Ticker 3: distribution of labels') +
-        geom_label(stat='count',aes(label=..count..), size=2) +
-        theme_grey(base_size = 3) +
-        theme(legend.position="bottom") +
-        coord_flip()
 ticker4_label$direction <- as.factor(ticker4_label$direction)
 levels(ticker4_label$direction) <- c("Decrease", "Stable", "Increase")
-ggplot(ticker4_label, aes(x = direction, fill = direction)) +
-  geom_bar(stat='count') +
-  labs(x = 'Ticker 4: distribution of labels') +
-        geom_label(stat='count',aes(label=..count..), size=2) +
-        theme_grey(base_size = 3) +
-        theme(legend.position="bottom") +
-        coord_flip()
+all <- rbind(ticker1_label, ticker2_label)
+all <- rbind(all, ticker3_label)
+all <- rbind(all, ticker4_label)
+lbs_plot <- ggplot(all, aes(x = ticker, fill = direction, group = direction)) + geom_bar(stat='count', position = "dodge")+coord_flip()
+lbs_plot_all <- ggplot(all, aes(x = direction, fill = direction)) + geom_bar(stat='count', position = "dodge")
+ggsave("label_dist.png", arrangeGrob(lbs_plot, lbs_plot_all))
 ```
+
 
 ```{r}
 ticker1[,c(4:43, 64:103)] <- na.interpolation(ticker1[,c(4:43, 64:103)], option = "linear")
 ticker2[,c(4:43, 64:103)] <- na.interpolation(ticker2[,c(4:43, 64:103)], option = "linear")
 ticker3[,c(4:43, 64:103)] <- na.interpolation(ticker3[,c(4:43, 64:103)], option = "linear")
 ticker4[,c(4:43, 64:103)] <- na.interpolation(ticker4[,c(4:43, 64:103)], option = "linear")
+
 ticker1 <- na.replace(ticker1, 0)
 ticker2 <- na.replace(ticker2, 0)
 ticker3 <- na.replace(ticker3, 0)
@@ -110,7 +129,7 @@ ticker4$ticker <- 4
 all_data <- list(ticker1, ticker2, ticker3, ticker4, ticker1_label, ticker2_label, ticker3_label, ticker4_label)
 ```
 
-```{r}
+```{r eval = FALSE, echo=FALSE}
 plot(ticker1$Level1.Price.weighted.Buy, type = "l", xlab = "Level 1 Weighted Average Price", ylab = "Weighted Average Price")
 lines(ticker1$Level1.Price.weighted.Sell,type = "l", col="green")
 legend(3000, 2085, legend=c("Weighted Average Price 1 Buy", "Weighted Average Price 1 Sell"), col=c("black", "green"), lty=1, cex=0.7)
@@ -139,6 +158,7 @@ lines(ticker4$Level1.Price.open.Sell,type = "l", col="green")
 plot(ticker4$Level1.Volume.Buy)
 lines(ticker4$Level1.Volume.Sell, type = "p", col="green")
 ```
+
 
 ```{r}
 x_all_train <- x_all_val <- x_all_test <- data.frame(matrix(ncol = 124, nrow = 0))
@@ -354,9 +374,9 @@ sampling_generator0 <- function(X_data, Y_data, batch_size, w)
     list(X, Y)
   }
 }
-```
 
 ```{r eval=FALSE, include=FALSE}
+
 nCol <- ncol(x_train)
 w <- 100
 model <- keras_model_sequential() %>% 
@@ -400,6 +420,7 @@ sampling_generator <- function(X_data, Y_data, batch_size, w=100)
     list(X, Y)
   }
 }
+
 model <- keras_model_sequential() %>%
   layer_gru(units = 32,
             dropout = 0.1,
