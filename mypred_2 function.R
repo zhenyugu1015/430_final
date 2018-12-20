@@ -1,10 +1,13 @@
-
+library(data.table)
 library(keras)
-
+library(dplyr)
+library(tidyr)
+library(reshape2)
 
 myPred_2 <- function(path1, path2, path3, path4, data_path){
   pathes <- list(path1, path2, path3, path4)
-  load.Rdata(data_path)
+  e <- new.env()
+  load(data_path, envir = e)
   dat_processed <- list()
   for (i in 1:4) {
     dataname <- pathes[[i]]
@@ -99,23 +102,23 @@ myPred_2 <- function(path1, path2, path3, path4, data_path){
   # Rescale
   for (j in 1:4) {
     x_test <- all_data[[j]]
-    for(i in 4:13) x_test[,i] <- scale(x_test[,i], center = me_Price.open.Buy, scale = sd_Price.open.Buy)
-    for(i in 14:23) x_test[,i] <- scale(x_test[,i], center = me_Price.open.Sell, scale = sd_Price.open.Sell)
-    for(i in 24:33) x_test[,i] <- scale(x_test[,i], center = me_Price.me.Buy, scale = sd_Price.me.Buy)
-    for(i in 34:43) x_test[,i] <- scale(x_test[,i], center = me_Price.me.Sell, scale = sd_Price.me.Sell)
-    for(i in 44:53) x_test[,i] <- scale(x_test[,i], center = me_Volume.Buy, scale = sd_Volume.Buy)
-    for(i in 54:63) x_test[,i] <- scale(x_test[,i], center = me_Volume.Sell, scale = sd_Volume.Sell)
-    for(i in 64:73) x_test[,i] <- scale(x_test[,i], center = me_Price.weighted.Buy, scale = sd_Price.weighted.Buy)
-    for(i in 74:83) x_test[,i] <- scale(x_test[,i], center = me_Price.weighted.Sell, scale = sd_Price.weighted.Sell)
-    for(i in 84:93) x_test[,i] <- scale(x_test[,i], center = me_Price.close.Buy, scale = sd_Price.close.Buy)
-    for(i in 94:103) x_test[,i] <- scale(x_test[,i], center = me_Price.close.Sell, scale = sd_Price.close.Sell)
-    for(i in 104:113) x_test[,i] <- scale(x_test[,i], center = me_Order.Buy, scale = sd_Order.Buy)
-    for(i in 114:123) x_test[,i] <- scale(x_test[,i], center = me_Order.Sell, scale = sd_Order.Sell)
+    for(i in 4:13) x_test[,i] <- scale(x_test[,i], center = e$me_Price.open.Buy, scale = e$sd_Price.open.Buy)
+    for(i in 14:23) x_test[,i] <- scale(x_test[,i], center = e$me_Price.open.Sell, scale = e$sd_Price.open.Sell)
+    for(i in 24:33) x_test[,i] <- scale(x_test[,i], center = e$me_Price.me.Buy, scale = e$sd_Price.me.Buy)
+    for(i in 34:43) x_test[,i] <- scale(x_test[,i], center = e$me_Price.me.Sell, scale = e$sd_Price.me.Sell)
+    for(i in 44:53) x_test[,i] <- scale(x_test[,i], center = e$me_Volume.Buy, scale = e$sd_Volume.Buy)
+    for(i in 54:63) x_test[,i] <- scale(x_test[,i], center = e$me_Volume.Sell, scale = e$sd_Volume.Sell)
+    for(i in 64:73) x_test[,i] <- scale(x_test[,i], center = e$me_Price.weighted.Buy, scale = e$sd_Price.weighted.Buy)
+    for(i in 74:83) x_test[,i] <- scale(x_test[,i], center = e$me_Price.weighted.Sell, scale = e$sd_Price.weighted.Sell)
+    for(i in 84:93) x_test[,i] <- scale(x_test[,i], center = e$me_Price.close.Buy, scale = e$sd_Price.close.Buy)
+    for(i in 94:103) x_test[,i] <- scale(x_test[,i], center = e$me_Price.close.Sell, scale = e$sd_Price.close.Sell)
+    for(i in 104:113) x_test[,i] <- scale(x_test[,i], center = e$me_Order.Buy, scale = e$sd_Order.Buy)
+    for(i in 114:123) x_test[,i] <- scale(x_test[,i], center = e$me_Order.Sell, scale = e$sd_Order.Sell)
     x_test <- x_test[,(1:124)]
     test_data[[i]] <- x_test
   }
   # Predict
-  #candidate <- load_model_hdf5(model_path)
+  candidate <- e$candidate
   pred_list <- list()
   for(i in 1:4){
     test_x <- test_data[[i]]
