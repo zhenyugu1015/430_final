@@ -39,10 +39,6 @@ For each level, we makes the open price, close price, total number of contracts,
 ### Data Cleaning
 Some of the oberservation contains `NA`. This is because in some seconds, there is no tansaction of `BUY`/`SELL`. We used `na.interpolation` and `na.replace` from R package `imputeTS` to fix the price of each level and set the volume to 0 if the price and volume are not available at a certain time.
 
-## Data Cleaning
-### Missing Values
-We grouped the datasets by **s**, **m**, **h**, and **Side** to match the datasets with the label. We planned to use the mean price, open price (the best price, i.e. Level 1 price), volume (i.e. contracts) for each second as our features. In general, with neural networks, it’s safe to input missing values as 0, with the condition that 0 isn’t already a meaningful value. We used `na.interpolation` and `na.replace` from R package `imputeTS` to fix the price of each level and set the volume to 0 if the price and volume are not available at a certain time.
-
 
 
 ## Exploratory Data
@@ -53,7 +49,7 @@ Here are the plots of the distribution of the labels. We can observe from the pl
 ![](label_dist.png)
 
 ### Stock Data.
-We first plot the 
+
 
 ```{r}
 s1 <- ggplot(ticker1[37500:38500,], aes(x = 37500:38500)) +
@@ -77,6 +73,9 @@ plot(ticker1$Level1.Price.weighted.Buy, type = "l", xlab = "Level 1 Weighted Ave
 ```{r eval = FALSE, include=FALSE}
 
 
+
+
+
 t1 <- fread("")
 
 library(ggplot2)
@@ -91,6 +90,11 @@ ticker2 <- read.csv("data_level/ticker2_level.csv")
 ticker3 <- read.csv("data_level/ticker3_level.csv")
 ticker4 <- read.csv("data_level/ticker4_level.csv")
 
+##### Data Processing
+
+
+
+##### Visualization
 ticker1_label$direction <- as.factor(ticker1_label$direction)
 levels(ticker1_label$direction) <- c("Decrease", "Stable", "Increase")
 ticker2_label$direction <- as.factor(ticker2_label$direction)
@@ -109,15 +113,7 @@ ggsave("label_dist.png", arrangeGrob(lbs_plot, lbs_plot_all))
 
 
 ```{r}
-ticker1[,c(4:43, 64:103)] <- na.interpolation(ticker1[,c(4:43, 64:103)], option = "linear")
-ticker2[,c(4:43, 64:103)] <- na.interpolation(ticker2[,c(4:43, 64:103)], option = "linear")
-ticker3[,c(4:43, 64:103)] <- na.interpolation(ticker3[,c(4:43, 64:103)], option = "linear")
-ticker4[,c(4:43, 64:103)] <- na.interpolation(ticker4[,c(4:43, 64:103)], option = "linear")
 
-ticker1 <- na.replace(ticker1, 0)
-ticker2 <- na.replace(ticker2, 0)
-ticker3 <- na.replace(ticker3, 0)
-ticker4 <- na.replace(ticker4, 0)
 # ticker1$ticker <- "Ticker1"
 # ticker2$ticker <- "Ticker2"
 # ticker3$ticker <- "Ticker3"
@@ -161,13 +157,79 @@ lines(ticker4$Level1.Volume.Sell, type = "p", col="green")
 
 
 ```{r}
+ticker1 <- fread("ticker1.csv")
+ticker2 <- fread("ticker2.csv")
+ticker3 <- fread("ticker3.csv")
+ticker4 <- fread("ticker4.csv")
+ticker1_label <- fread("raw data/Ticker1_label.csv")
+ticker2_label <- fread("raw data/Ticker2_label.csv")
+ticker3_label <- fread("raw data/Ticker3_label.csv")
+ticker4_label <- fread("raw data/Ticker4_label.csv")
+
+ticker1$ticker <- 1
+ticker2$ticker <- 2
+ticker3$ticker <- 3
+ticker4$ticker <- 4
+
+ticker1 <- ticker1[,-1]
+ticker2 <- ticker2[,-1]
+ticker3 <- ticker3[,-1]
+ticker4 <- ticker4[,-1]
+
+
+weights_fracDiff <- function(d=0.3, nWei=10, tau=NULL)
+{
+  wVec <- w0 <- 1
+  if(is.null(tau))
+  {
+    for(k in 1:(nWei-1))
+    {
+      w1 <- (-1)*w0*(d-k+1)/k
+      wVec <- c(wVec, w1)
+      w0 <- w1
+    }
+  }else
+  {
+    k <- 1
+    while(abs(w0) >= tau)
+    {
+      w1 <- (-1)*w0*(d-k+1)/k
+      wVec <- c(wVec, w1)
+      w0 <- w1
+      k <- k+1
+    }
+    wVec <- wVec[-length(wVec)] # remove the last one which is already < tau
+  }
+  return(wVec)
+}
+
+fracDiff <- function(x, d=0.3, nWei=10, tau=NULL)
+{
+  weig <- weights_fracDiff(d=d, nWei=nWei, tau=tau)
+  nWei <- length(weig) # the first one in x that can use all the weights
+  nx <- length(x)
+  # get weighted time series; this step can be very time consuming for huge data
+  rst <- sapply(1:nx, function(i, nWei){ 
+                        if (i < nWei){
+                          r <- sum(weig[1:i] * x[i:1])
+                        } else {
+                          r <- sum(weig*x[i:(i-nWei+1)])
+                        }
+                        return(r)}, nWei)
+  return(rst)
+}
+
 x_all_train <- x_all_val <- x_all_test <- data.frame(matrix(ncol = 124, nrow = 0))
 names(x_all_train) <- names(x_all_val) <- names(x_all_test) <- names(ticker1)
 y_all_train <- y_all_val <- y_all_test <- c()
 
-for (i in 1:4) {
-  current_ticker <- all_data[[i]]
-  current_ticker_label <- all_data[[(i+4)]]
+for (j in 1:4) {
+  current_ticker <- all_data[[j]]
+  current_ticker_label <- all_data[[(j+4)]]
+  for(i in 4:43){current_ticker[,i] <- fracDiff(unlist(current_ticker[,i]), d=0.6, nWei=60)}
+  for(i in 44:63){ current_ticker[,i] <- fracDiff(unlist(current_ticker[,i]), d=0.8, nWei=120)}
+  for(i in 64:103){ current_ticker[,i] <- fracDiff(unlist(current_ticker[,i]), d=0.6, nWei=60)}
+  for(i in 104:123) {current_ticker[,i] <- fracDiff(unlist(current_ticker[,i]), d=0.8, nWei = 135)}
   
   x_train <- current_ticker[(1:floor(nrow(all_data[[i]])/5*3)),]
   x_val <- current_ticker[((floor(nrow(current_ticker)/5*3)+1):floor(nrow(current_ticker)/5*4)),]
